@@ -1,4 +1,4 @@
-use blake2_rfc::blake2b::Blake2b;
+use blake2::{Blake2b, Digest};
 
 use rand::{Rand, Rng};
 use {Field, SqrtField};
@@ -79,8 +79,8 @@ impl Fq2 {
 
     pub(crate) fn hash(mut hasher_c0: Blake2b) -> Self {
         let mut hasher_c1 = hasher_c0.clone();
-        hasher_c0.update(b"_c0");
-        hasher_c1.update(b"_c1");
+        hasher_c0.input(b"_c0");
+        hasher_c1.input(b"_c1");
 
         Fq2 {
             c0: Fq::hash(hasher_c0),

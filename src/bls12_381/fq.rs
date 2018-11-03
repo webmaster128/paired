@@ -1,7 +1,7 @@
 use {BitIterator, Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, SqrtField};
 use super::fq2::Fq2;
 
-use blake2_rfc::blake2b::Blake2b;
+use blake2::{Blake2b, Digest};
 use byteorder::{BigEndian, ByteOrder};
 
 use std::cmp::Ordering;
@@ -1182,8 +1182,7 @@ impl Fq {
     /// initialized with a 64 byte digest result.
     pub(crate) fn hash(hasher: Blake2b) -> Self {
         let mut repr: [u64; 8] = [0; 8];
-        let digest = hasher.finalize();
-        BigEndian::read_u64_into(digest.as_bytes(), &mut repr);
+        BigEndian::read_u64_into(&hasher.result()[..], &mut repr);
         repr.reverse();
         Self::one().mul_bits(BitIterator::new(repr))
     }
@@ -1243,16 +1242,16 @@ use rand::{Rand, Rng, SeedableRng, XorShiftRng};
 #[test]
 fn test_hash() {
     // check that an arbitrary image of the hash is in the field.
-    let mut hasher = Blake2b::new(64);
-    hasher.update(&[0x42; 32]);
+    let mut hasher = Blake2b::new();
+    hasher.input(&[0x42; 32]);
     assert!(Fq::hash(hasher).is_valid());
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
     let mut lsb_ones: i32 = 0;
     for _ in 0..1000 {
         let seed = rng.gen::<[u8; 32]>();
-        let mut hasher = Blake2b::new(64);
-        hasher.update(&seed);
+        let mut hasher = Blake2b::new();
+        hasher.input(&seed);
         let e = Fq::hash(hasher);
         // check that the hash image is in the field
         assert!(e.is_valid());
@@ -3073,7 +3072,7 @@ fn test_fq_legendre() {
 
 #[test]
 fn test_fq_hash() {
-    let h = Blake2b::new(64);
+    let h = Blake2b::new();
 
     assert_eq!(
         Fq::hash(h),

@@ -13,7 +13,7 @@
 // Force public structures to implement Debug
 #![deny(missing_debug_implementations)]
 
-extern crate blake2_rfc;
+extern crate blake2;
 extern crate byteorder;
 extern crate rand;
 

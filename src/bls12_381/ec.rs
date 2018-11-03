@@ -664,16 +664,16 @@ macro_rules! curve_impl {
                 // We construct them appending to the message the string
                 // $name_$oracle
                 // For instance, the first oracle in group G1 appends: "G1_0".
-                let mut hasher_0 = Blake2b::new(64);
-                hasher_0.update(msg);
-                hasher_0.update($name.as_bytes());
+                let mut hasher_0 = Blake2b::new();
+                hasher_0.input(msg);
+                hasher_0.input($name.as_bytes());
                 let mut hasher_1 = hasher_0.clone();
 
-                hasher_0.update(b"_0");
+                hasher_0.input(b"_0");
                 let t0 = Self::Base::hash(hasher_0);
                 let t0 = Self::Affine::sw_encode(t0);
 
-                hasher_1.update(b"_1");
+                hasher_1.input(b"_1");
                 let t1 = Self::Base::hash(hasher_1);
                 let t1 = Self::Affine::sw_encode(t1);
 
@@ -772,7 +772,7 @@ macro_rules! curve_impl {
 }
 
 pub mod g1 {
-    use blake2_rfc::blake2b::Blake2b;
+    use blake2::{Blake2b, Digest};
     use rand::{Rand, Rng};
     use std::fmt;
     use super::g2::G2Affine;
@@ -1468,7 +1468,7 @@ pub mod g1 {
 }
 
 pub mod g2 {
-    use blake2_rfc::blake2b::Blake2b;
+    use blake2::{Blake2b, Digest};
     use rand::{Rand, Rng};
     use std::fmt;
     use super::super::{Bls12, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr};
