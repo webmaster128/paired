@@ -1,7 +1,7 @@
-use {BitIterator, Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, SqrtField};
 use super::fq2::Fq2;
+use {BitIterator, Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, SqrtField};
 
-use blake2::{Blake2b, Digest};
+use blake2b_simd::State as Blake2b;
 use byteorder::{BigEndian, ByteOrder};
 
 use std::cmp::Ordering;
@@ -1180,9 +1180,9 @@ impl Fq {
     /// number. The number is reduced mod q. The caller is
     /// responsible for ensuring the Blake2b instance was
     /// initialized with a 64 byte digest result.
-    pub(crate) fn hash(hasher: Blake2b) -> Self {
+    pub(crate) fn hash(mut hasher: Blake2b) -> Self {
         let mut repr: [u64; 8] = [0; 8];
-        BigEndian::read_u64_into(&hasher.result()[..], &mut repr);
+        BigEndian::read_u64_into(hasher.finalize().as_bytes(), &mut repr);
         repr.reverse();
         Self::one().mul_bits(BitIterator::new(repr))
     }
@@ -1243,7 +1243,7 @@ use rand::{Rand, Rng, SeedableRng, XorShiftRng};
 fn test_hash() {
     // check that an arbitrary image of the hash is in the field.
     let mut hasher = Blake2b::new();
-    hasher.input(&[0x42; 32]);
+    hasher.update(&[0x42; 32]);
     assert!(Fq::hash(hasher).is_valid());
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
@@ -1251,12 +1251,13 @@ fn test_hash() {
     for _ in 0..1000 {
         let seed = rng.gen::<[u8; 32]>();
         let mut hasher = Blake2b::new();
-        hasher.input(&seed);
+        hasher.update(&seed);
         let e = Fq::hash(hasher);
         // check that the hash image is in the field
         assert!(e.is_valid());
         // count how many less-significant bits are set in each limb
-        lsb_ones += e.into_repr()
+        lsb_ones += e
+            .into_repr()
             .as_ref()
             .iter()
             .map(|x| if x % 2 == 0 { 0i32 } else { 1i32 })
@@ -2406,16 +2407,15 @@ fn test_fq_is_valid() {
     a.0.sub_noborrow(&FqRepr::from(1));
     assert!(a.is_valid());
     assert!(Fq(FqRepr::from(0)).is_valid());
-    assert!(
-        Fq(FqRepr([
-            0xdf4671abd14dab3e,
-            0xe2dc0c9f534fbd33,
-            0x31ca6c880cc444a6,
-            0x257a67e70ef33359,
-            0xf9b29e493f899b36,
-            0x17c8be1800b9f059
-        ])).is_valid()
-    );
+    assert!(Fq(FqRepr([
+        0xdf4671abd14dab3e,
+        0xe2dc0c9f534fbd33,
+        0x31ca6c880cc444a6,
+        0x257a67e70ef33359,
+        0xf9b29e493f899b36,
+        0x17c8be1800b9f059
+    ]))
+    .is_valid());
     assert!(!Fq(FqRepr([
         0xffffffffffffffff,
         0xffffffffffffffff,
@@ -2423,7 +2423,8 @@ fn test_fq_is_valid() {
         0xffffffffffffffff,
         0xffffffffffffffff,
         0xffffffffffffffff
-    ])).is_valid());
+    ]))
+    .is_valid());
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
@@ -2759,7 +2760,8 @@ fn test_fq_squaring() {
             0xdc05c659b4e15b27,
             0x79361e5a802c6a23,
             0x24bcbe5d51b9a6f
-        ])).unwrap()
+        ]))
+        .unwrap()
     );
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
@@ -2889,16 +2891,15 @@ fn test_fq_sqrt() {
 #[test]
 fn test_fq_from_into_repr() {
     // q + 1 should not be in the field
-    assert!(
-        Fq::from_repr(FqRepr([
-            0xb9feffffffffaaac,
-            0x1eabfffeb153ffff,
-            0x6730d2a0f6b0f624,
-            0x64774b84f38512bf,
-            0x4b1ba7b6434bacd7,
-            0x1a0111ea397fe69a
-        ])).is_err()
-    );
+    assert!(Fq::from_repr(FqRepr([
+        0xb9feffffffffaaac,
+        0x1eabfffeb153ffff,
+        0x6730d2a0f6b0f624,
+        0x64774b84f38512bf,
+        0x4b1ba7b6434bacd7,
+        0x1a0111ea397fe69a
+    ]))
+    .is_err());
 
     // q should not be in the field
     assert!(Fq::from_repr(Fq::char()).is_err());

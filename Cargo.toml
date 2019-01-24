@@ -12,7 +12,7 @@ homepage = "https://github.com/ebfull/pairing"
 repository = "https://github.com/ebfull/pairing"
 
 [dependencies]
-blake2 = "0.8"
+blake2b_simd = "0.4.1"
 rand = "0.4"
 byteorder = "1"
 clippy = { version = "0.0.190", optional = true }
@@ -22,4 +22,3 @@ unstable-features = ["expose-arith"]
 expose-arith = []
 u128-support = []
 default = []
-asm = ["blake2/simd_asm"]

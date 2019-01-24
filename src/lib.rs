@@ -13,7 +13,7 @@
 // Force public structures to implement Debug
 #![deny(missing_debug_implementations)]
 
-extern crate blake2;
+extern crate blake2b_simd;
 extern crate byteorder;
 extern crate rand;
 
@@ -25,8 +25,8 @@ pub mod bls12_381;
 mod wnaf;
 pub use self::wnaf::Wnaf;
 
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 use std::io::{self, Read, Write};
 
 /// An "engine" is a collection of types (fields, elliptic curve groups, etc.)
@@ -42,8 +42,7 @@ pub trait Engine: Sized + 'static + Clone {
             Base = Self::Fq,
             Scalar = Self::Fr,
             Affine = Self::G1Affine,
-        >
-        + From<Self::G1Affine>;
+        > + From<Self::G1Affine>;
 
     /// The affine representation of an element in G1.
     type G1Affine: CurveAffine<
@@ -53,8 +52,7 @@ pub trait Engine: Sized + 'static + Clone {
             Projective = Self::G1,
             Pair = Self::G2Affine,
             PairingResult = Self::Fqk,
-        >
-        + From<Self::G1>;
+        > + From<Self::G1>;
 
     /// The projective representation of an element in G2.
     type G2: CurveProjective<
@@ -62,8 +60,7 @@ pub trait Engine: Sized + 'static + Clone {
             Base = Self::Fqe,
             Scalar = Self::Fr,
             Affine = Self::G2Affine,
-        >
-        + From<Self::G2Affine>;
+        > + From<Self::G2Affine>;
 
     /// The affine representation of an element in G2.
     type G2Affine: CurveAffine<
@@ -73,8 +70,7 @@ pub trait Engine: Sized + 'static + Clone {
             Projective = Self::G2,
             Pair = Self::G1Affine,
             PairingResult = Self::Fqk,
-        >
-        + From<Self::G2>;
+        > + From<Self::G2>;
 
     /// The base field that hosts G1.
     type Fq: PrimeField + SqrtField;
@@ -106,7 +102,8 @@ pub trait Engine: Sized + 'static + Clone {
     {
         Self::final_exponentiation(&Self::miller_loop(
             [(&(p.into().prepare()), &(q.into().prepare()))].into_iter(),
-        )).unwrap()
+        ))
+        .unwrap()
     }
 }
 
