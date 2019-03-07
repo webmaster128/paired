@@ -8,9 +8,11 @@
 #![cfg_attr(feature = "cargo-clippy", allow(many_single_char_names))]
 #![cfg_attr(feature = "cargo-clippy", allow(new_without_default_derive))]
 #![cfg_attr(feature = "cargo-clippy", allow(write_literal))]
+#![cfg_attr(feature = "clippy", allow(string_lit_as_bytes))]
 // Force public structures to implement Debug
 #![deny(missing_debug_implementations)]
 
+extern crate blake2b_simd;
 extern crate byteorder;
 #[macro_use]
 extern crate ff;
@@ -38,8 +40,7 @@ pub trait Engine: ScalarEngine {
             Base = Self::Fq,
             Scalar = Self::Fr,
             Affine = Self::G1Affine,
-        >
-        + From<Self::G1Affine>;
+        > + From<Self::G1Affine>;
 
     /// The affine representation of an element in G1.
     type G1Affine: CurveAffine<
@@ -49,8 +50,7 @@ pub trait Engine: ScalarEngine {
             Projective = Self::G1,
             Pair = Self::G2Affine,
             PairingResult = Self::Fqk,
-        >
-        + From<Self::G1>;
+        > + From<Self::G1>;
 
     /// The projective representation of an element in G2.
     type G2: CurveProjective<
@@ -58,8 +58,7 @@ pub trait Engine: ScalarEngine {
             Base = Self::Fqe,
             Scalar = Self::Fr,
             Affine = Self::G2Affine,
-        >
-        + From<Self::G2Affine>;
+        > + From<Self::G2Affine>;
 
     /// The affine representation of an element in G2.
     type G2Affine: CurveAffine<
@@ -69,8 +68,7 @@ pub trait Engine: ScalarEngine {
             Projective = Self::G2,
             Pair = Self::G1Affine,
             PairingResult = Self::Fqk,
-        >
-        + From<Self::G2>;
+        > + From<Self::G2>;
 
     /// The base field that hosts G1.
     type Fq: PrimeField + SqrtField;
@@ -102,7 +100,8 @@ pub trait Engine: ScalarEngine {
     {
         Self::final_exponentiation(&Self::miller_loop(
             [(&(p.into().prepare()), &(q.into().prepare()))].into_iter(),
-        )).unwrap()
+        ))
+        .unwrap()
     }
 }
 
@@ -175,6 +174,9 @@ pub trait CurveProjective:
     /// Recommends a wNAF window size given the number of scalars you intend to multiply
     /// a base by. Always returns a number between 2 and 22, inclusive.
     fn recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize;
+
+    /// Given a message, hash into a random element of the prime-order subgroup.
+    fn hash(&[u8]) -> Self;
 }
 
 /// Affine representation of an elliptic curve point guaranteed to be
