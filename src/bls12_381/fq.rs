@@ -1,5 +1,8 @@
 use super::fq2::Fq2;
-use ff::{Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr};
+use ff::{BitIterator, Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr};
+
+use blake2b_simd::State as Blake2b;
+use byteorder::{BigEndian, ByteOrder};
 
 // B coefficient of BLS12-381 curve, 4.
 pub const B_COEFF: Fq = Fq(FqRepr([
@@ -9,6 +12,30 @@ pub const B_COEFF: Fq = Fq(FqRepr([
     0xb1d37ebee6ba24d7,
     0x8ec9733bbf78ab2f,
     0x9d645513d83de7e,
+]));
+
+// SWENC_SQRT_NEG_THREE = sqrt(-3) mod q =
+// 1586958781458431025242759403266842894121773480562120986020912974854563298150952611241517463240701
+// used to help find a Fq-rational point in the conic described by the Shallue–van de Woestijne encoding.
+const SWENC_SQRT_NEG_THREE: Fq = Fq(FqRepr([
+    0x1dec6c36f3181f22,
+    0xb4b9bb641054b457,
+    0x25695a2be9415286,
+    0x982b6cbf66c749bc,
+    0x7d58e1ae1feb7873,
+    0x62c96300937c0b9,
+]));
+
+// SWENC_SQRT_NEG_THREE_MINUS_ONE_DIV_TWO = (sqrt(-3) - 1) / 2 mod q =
+// 793479390729215512621379701633421447060886740281060493010456487427281649075476305620758731620350
+// used to speed up the computation of the abscissa x_1(t).
+const SWENC_SQRT_NEG_THREE_MINUS_ONE_DIV_TWO: Fq = Fq(FqRepr([
+    0x30f1361b798a64e8,
+    0xf3b8ddab7ece5a2a,
+    0x16a8ca3ac61577f7,
+    0xc26a2ff874fd029b,
+    0x3636b76660701c6e,
+    0x51ba4ab241b6160,
 ]));
 
 // The generators of G1/G2 are computed by finding the lexicographically smallest valid x coordinate,
@@ -448,9 +475,101 @@ pub const NEGATIVE_ONE: Fq = Fq(FqRepr([
 #[PrimeFieldGenerator = "2"]
 pub struct Fq(FqRepr);
 
+impl Fq {
+    pub(crate) fn parity(&self) -> bool {
+        let mut neg = *self;
+        neg.negate();
+        *self > neg
+    }
+
+    pub(crate) fn get_swenc_sqrt_neg_three() -> Fq {
+        SWENC_SQRT_NEG_THREE
+    }
+
+    pub(crate) fn get_swenc_sqrt_neg_three_minus_one_div_two() -> Fq {
+        SWENC_SQRT_NEG_THREE_MINUS_ONE_DIV_TWO
+    }
+
+    fn mul_bits<S: AsRef<[u64]>>(&self, bits: BitIterator<S>) -> Self {
+        let mut res = Self::zero();
+        for bit in bits {
+            res.double();
+
+            if bit {
+                res.add_assign(self)
+            }
+        }
+        res
+    }
+
+    /// Hash into the field. This takes a `Blake2b` instance,
+    /// computes the hash, and interprets the hash as a big endian
+    /// number. The number is reduced mod q. The caller is
+    /// responsible for ensuring the Blake2b instance was
+    /// initialized with a 64 byte digest result.
+    pub(crate) fn hash(mut hasher: Blake2b) -> Self {
+        let mut repr: [u64; 8] = [0; 8];
+        BigEndian::read_u64_into(hasher.finalize().as_bytes(), &mut repr);
+        repr.reverse();
+        Self::one().mul_bits(BitIterator::new(repr))
+    }
+}
+
+#[cfg(test)]
+use ff::SqrtField;
+#[cfg(test)]
+use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+
+#[test]
+fn test_hash() {
+    // check that an arbitrary image of the hash is in the field.
+    let mut hasher = Blake2b::new();
+    hasher.update(&[0x42; 32]);
+    assert!(Fq::hash(hasher).is_valid());
+
+    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut lsb_ones: i32 = 0;
+    for _ in 0..1000 {
+        let seed = rng.gen::<[u8; 32]>();
+        let mut hasher = Blake2b::new();
+        hasher.update(&seed);
+        let e = Fq::hash(hasher);
+        // check that the hash image is in the field
+        assert!(e.is_valid());
+        // count how many less-significant bits are set in each limb
+        lsb_ones += e
+            .into_repr()
+            .as_ref()
+            .iter()
+            .map(|x| if x % 2 == 0 { 0i32 } else { 1i32 })
+            .sum::<i32>();
+    }
+    // lsb_ones should a uniformly random variable 100*X
+    // where X is a coin flip
+    let mean = 1000 * 6 / 2;
+    // sqrt(1000 * 6 * .25) = 38.72983346207417
+    let variance = 40 * 4;
+    assert!((lsb_ones - mean).abs() < variance);
+}
+
 #[test]
 fn test_b_coeff() {
     assert_eq!(Fq::from_repr(FqRepr::from(4)).unwrap(), B_COEFF);
+}
+
+#[test]
+fn test_swenc_consts() {
+    // c0 = sqrt(-3)
+    let mut c0 = Fq::from_repr(FqRepr::from(3)).unwrap();
+    c0.negate();
+    let c0 = c0.sqrt().unwrap();
+    assert_eq!(c0, Fq::get_swenc_sqrt_neg_three());
+
+    // c2 = (sqrt(-3) - 1) / 2
+    let mut expected = Fq::get_swenc_sqrt_neg_three_minus_one_div_two();
+    expected.add_assign(&Fq::get_swenc_sqrt_neg_three_minus_one_div_two());
+    expected.add_assign(&Fq::one());
+    assert_eq!(c0, expected);
 }
 
 #[test]
@@ -1172,9 +1291,6 @@ fn test_neg_one() {
     assert_eq!(NEGATIVE_ONE, o);
 }
 
-#[cfg(test)]
-use rand::{Rand, SeedableRng, XorShiftRng};
-
 #[test]
 fn test_fq_repr_ordering() {
     use std::cmp::Ordering;
@@ -1574,26 +1690,24 @@ fn test_fq_is_valid() {
     a.0.sub_noborrow(&FqRepr::from(1));
     assert!(a.is_valid());
     assert!(Fq(FqRepr::from(0)).is_valid());
-    assert!(
-        Fq(FqRepr([
-            0xdf4671abd14dab3e,
-            0xe2dc0c9f534fbd33,
-            0x31ca6c880cc444a6,
-            0x257a67e70ef33359,
-            0xf9b29e493f899b36,
-            0x17c8be1800b9f059
-        ])).is_valid()
-    );
-    assert!(
-        !Fq(FqRepr([
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff
-        ])).is_valid()
-    );
+    assert!(Fq(FqRepr([
+        0xdf4671abd14dab3e,
+        0xe2dc0c9f534fbd33,
+        0x31ca6c880cc444a6,
+        0x257a67e70ef33359,
+        0xf9b29e493f899b36,
+        0x17c8be1800b9f059
+    ]))
+    .is_valid());
+    assert!(!Fq(FqRepr([
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff
+    ]))
+    .is_valid());
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
@@ -1929,7 +2043,8 @@ fn test_fq_squaring() {
             0xdc05c659b4e15b27,
             0x79361e5a802c6a23,
             0x24bcbe5d51b9a6f
-        ])).unwrap()
+        ]))
+        .unwrap()
     );
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
@@ -2061,16 +2176,15 @@ fn test_fq_sqrt() {
 #[test]
 fn test_fq_from_into_repr() {
     // q + 1 should not be in the field
-    assert!(
-        Fq::from_repr(FqRepr([
-            0xb9feffffffffaaac,
-            0x1eabfffeb153ffff,
-            0x6730d2a0f6b0f624,
-            0x64774b84f38512bf,
-            0x4b1ba7b6434bacd7,
-            0x1a0111ea397fe69a
-        ])).is_err()
-    );
+    assert!(Fq::from_repr(FqRepr([
+        0xb9feffffffffaaac,
+        0x1eabfffeb153ffff,
+        0x6730d2a0f6b0f624,
+        0x64774b84f38512bf,
+        0x4b1ba7b6434bacd7,
+        0x1a0111ea397fe69a
+    ]))
+    .is_err());
 
     // q should not be in the field
     assert!(Fq::from_repr(Fq::char()).is_err());
@@ -2243,4 +2357,14 @@ fn test_fq_legendre() {
         0x1d61ac6bfd5c88b,
     ]);
     assert_eq!(QuadraticResidue, Fq::from_repr(e).unwrap().legendre());
+}
+
+#[test]
+fn test_fq_hash() {
+    let h = Blake2b::new();
+
+    assert_eq!(
+        Fq::hash(h),
+        Fq::from_str("2969971670216977749765615497980645380676770840200853026844185893034591434908642692717019379762235872058512380843355").unwrap()
+    );
 }
