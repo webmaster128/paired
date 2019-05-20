@@ -1,5 +1,5 @@
 [package]
-name = "pairing"
+name = "paired"
 
 # Remember to change version string in README.md.
 version = "0.14.3"
@@ -10,9 +10,9 @@ authors = [
 license = "MIT/Apache-2.0"
 
 description = "Pairing-friendly elliptic curve library"
-documentation = "https://docs.rs/pairing/"
-homepage = "https://github.com/ebfull/pairing"
-repository = "https://github.com/ebfull/pairing"
+documentation = "https://docs.rs/paired/"
+homepage = "https://github.com/filecoin-project/paired"
+repository = "https://github.com/filecoin-project/paired"
 
 [dependencies]
 rand = "0.4"
@@ -28,3 +28,7 @@ default = []
 
 [dev-dependencies]
 serde_json = "1.0"
+
+[package.metadata.release]
+pre-release-commit-message = "chore(release): release {{version}}"
+pro-release-commit-message = "chore(release): starting development cycle for {{next_version}}"
