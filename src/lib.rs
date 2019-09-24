@@ -1,3 +1,4 @@
+#![feature(asm)]
 // `clippy` is a code linting tool for improving code quality by catching
 // common mistakes or strange code patterns. If the `cargo-clippy` feature
 // is provided, all compiler warnings are prohibited.
@@ -37,12 +38,8 @@ use std::fmt;
 /// of prime order `r`, and are equipped with a bilinear pairing function.
 pub trait Engine: ScalarEngine {
     /// The projective representation of an element in G1.
-    type G1: CurveProjective<
-            Engine = Self,
-            Base = Self::Fq,
-            Scalar = Self::Fr,
-            Affine = Self::G1Affine,
-        > + From<Self::G1Affine>;
+    type G1: CurveProjective<Engine = Self, Base = Self::Fq, Scalar = Self::Fr, Affine = Self::G1Affine>
+        + From<Self::G1Affine>;
 
     /// The affine representation of an element in G1.
     type G1Affine: CurveAffine<
@@ -55,12 +52,8 @@ pub trait Engine: ScalarEngine {
         > + From<Self::G1>;
 
     /// The projective representation of an element in G2.
-    type G2: CurveProjective<
-            Engine = Self,
-            Base = Self::Fqe,
-            Scalar = Self::Fr,
-            Affine = Self::G2Affine,
-        > + From<Self::G2Affine>;
+    type G2: CurveProjective<Engine = Self, Base = Self::Fqe, Scalar = Self::Fr, Affine = Self::G2Affine>
+        + From<Self::G2Affine>;
 
     /// The affine representation of an element in G2.
     type G2Affine: CurveAffine<
@@ -236,8 +229,19 @@ pub trait CurveAffine:
 
 /// An encoded elliptic curve point, which should essentially wrap a `[u8; N]`.
 pub trait EncodedPoint:
-    Sized + Send + Sync + AsRef<[u8]> + AsMut<[u8]> + Clone + Copy
-	 + PartialOrd + Ord + PartialEq + Eq + ::std::hash::Hash + 'static
+    Sized
+    + Send
+    + Sync
+    + AsRef<[u8]>
+    + AsMut<[u8]>
+    + Clone
+    + Copy
+    + PartialOrd
+    + Ord
+    + PartialEq
+    + Eq
+    + ::std::hash::Hash
+    + 'static
 {
     type Affine: CurveAffine;
 
