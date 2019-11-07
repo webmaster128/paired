@@ -63,6 +63,24 @@ jobs:
       - test_target:
           target: "x86_64-unknown-linux-gnu"
 
+  rustfmt:
+    executor: default
+    steps:
+      - *restore-workspace
+      - *restore-cache
+      - run:
+          name: Run cargo fmt
+          command: cargo fmt --all -- --check
+
+  clippy:
+    executor: default
+    steps:
+      - *restore-workspace
+      - *restore-cache
+      - run:
+          name: Run cargo clippy
+          command: cargo clippy --all
+
   build:
     executor: default
     steps:
@@ -79,6 +97,12 @@ workflows:
   test:
     jobs:
       - cargo_fetch
+      - rustfmt
+          requires:
+            - cargo_fetch
+      - clippy
+          requires:
+            - cargo_fetch
       - test_x86_64-unknown-linux-gnu:
           requires:
             - cargo_fetch
