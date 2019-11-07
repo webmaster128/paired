@@ -97,10 +97,10 @@ workflows:
   test:
     jobs:
       - cargo_fetch
-      - rustfmt
+      - rustfmt:
           requires:
             - cargo_fetch
-      - clippy
+      - clippy:
           requires:
             - cargo_fetch
       - test_x86_64-unknown-linux-gnu:
