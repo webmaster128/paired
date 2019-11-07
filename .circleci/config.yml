@@ -71,7 +71,7 @@ jobs:
       - *restore-cache
       - run:
           name: Run cargo fmt
-          command: cargo fmt --all -- --check
+          command: cargo +nightly fmt --all -- --check
 
   clippy:
     executor: default
