@@ -1,4 +1,4 @@
-use group::{CurveAffine, CurveProjective};
+use groupy::{CurveAffine, CurveProjective};
 use rand_core::SeedableRng;
 use rand_xorshift::XorShiftRng;
 

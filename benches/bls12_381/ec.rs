@@ -3,7 +3,7 @@ mod g1 {
     use rand_xorshift::XorShiftRng;
 
     use ff::Field;
-    use group::CurveProjective;
+    use groupy::CurveProjective;
     use paired::bls12_381::*;
 
     #[bench]

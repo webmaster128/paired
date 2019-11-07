@@ -999,7 +999,7 @@ fn fq2_field_tests() {
 #[test]
 fn test_swenc_consts() {
     use super::FqRepr;
-    use PrimeField;
+    use ff::PrimeField;
 
     // c0 = sqrt(-3)
     let mut c0 = Fq2 {

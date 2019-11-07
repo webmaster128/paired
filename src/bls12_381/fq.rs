@@ -507,7 +507,7 @@ impl Fq {
     /// number. The number is reduced mod q. The caller is
     /// responsible for ensuring the Blake2b instance was
     /// initialized with a 64 byte digest result.
-    pub(crate) fn hash(mut hasher: Blake2b) -> Self {
+    pub(crate) fn hash(hasher: Blake2b) -> Self {
         let mut repr: [u64; 8] = [0; 8];
         BigEndian::read_u64_into(hasher.finalize().as_bytes(), &mut repr);
         repr.reverse();
@@ -518,7 +518,7 @@ impl Fq {
 #[cfg(test)]
 use ff::SqrtField;
 #[cfg(test)]
-use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+use rand_core::RngCore;
 
 #[test]
 fn test_hash() {
@@ -527,10 +527,15 @@ fn test_hash() {
     hasher.update(&[0x42; 32]);
     assert!(Fq::hash(hasher).is_valid());
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
+
     let mut lsb_ones: i32 = 0;
+    let mut seed = [0u8; 32];
     for _ in 0..1000 {
-        let seed = rng.gen::<[u8; 32]>();
+        rng.fill_bytes(&mut seed);
         let mut hasher = Blake2b::new();
         hasher.update(&seed);
         let e = Fq::hash(hasher);

@@ -290,10 +290,6 @@ macro_rules! curve_impl {
             fn pairing_with(&self, other: &Self::Pair) -> Self::PairingResult {
                 self.perform_pairing(other)
             }
-
-            fn into_projective(&self) -> $projective {
-                (*self).into()
-            }
         }
 
         impl CurveProjective for $projective {
@@ -341,7 +337,7 @@ macro_rules! curve_impl {
                 self.is_zero() || self.z == $basefield::one()
             }
 
-            fn batch_normalization<S: ::std::borrow::BorrowMut<Self>>(v: &mut [S]) {
+            fn batch_normalization<S: std::borrow::BorrowMut<Self>>(v: &mut [S]) {
                 // Montgomery’s Trick and Fast Implementation of Masked AES
                 // Genelle, Prouff and Quisquater
                 // Section 3.2
@@ -682,6 +678,7 @@ macro_rules! curve_impl {
                 // For instance, the first oracle in group G1 appends: "G1_0".
                 let mut hasher_0 = blake2b_simd::State::new();
                 hasher_0.update(msg);
+                #[allow(clippy::string_lit_as_bytes)]
                 hasher_0.update($name.as_bytes());
                 let mut hasher_1 = hasher_0.clone();
 
@@ -753,14 +750,20 @@ macro_rules! curve_impl {
         }
 
         #[cfg(test)]
-        use rand::{SeedableRng, XorShiftRng};
+        use rand_core::SeedableRng;
+        #[cfg(test)]
+        use rand_xorshift::XorShiftRng;
 
         #[test]
         fn test_hash() {
-            let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+            let mut rng = XorShiftRng::from_seed([
+                0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+                0xbc, 0xe5,
+            ]);
 
+            let mut seed: [u8; 32] = [0u8; 32];
             for _ in 0..100 {
-                let seed: [u8; 32] = rng.gen();
+                rng.fill_bytes(&mut seed);
                 let p = $projective::hash(&seed).into_affine();
                 assert!(!p.is_zero());
                 assert!(p.is_on_curve());
@@ -770,10 +773,13 @@ macro_rules! curve_impl {
 
         #[test]
         fn test_sw_encode() {
-            let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+            let mut rng = XorShiftRng::from_seed([
+                0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+                0xbc, 0xe5,
+            ]);
 
             for _ in 0..100 {
-                let mut t = $basefield::rand(&mut rng);
+                let mut t = $basefield::random(&mut rng);
                 let p = $affine::sw_encode(t);
                 assert!(p.is_on_curve());
                 assert!(!p.is_zero());
@@ -830,7 +836,7 @@ pub mod g1 {
     use super::g2::G2Affine;
     use crate::{Engine, PairingCurveAffine};
     use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
-    use group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
+    use groupy::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
     use rand_core::RngCore;
     use std::fmt;
 
@@ -1519,7 +1525,7 @@ pub mod g1 {
 
     #[test]
     fn g1_curve_tests() {
-        use group::tests::curve_tests;
+        use groupy::tests::curve_tests;
         curve_tests::<G1>();
     }
 }
@@ -1529,7 +1535,7 @@ pub mod g2 {
     use super::g1::G1Affine;
     use crate::{Engine, PairingCurveAffine};
     use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
-    use group::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
+    use groupy::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
     use rand_core::RngCore;
     use std::fmt;
 
@@ -2319,7 +2325,7 @@ pub mod g2 {
 
     #[test]
     fn g2_curve_tests() {
-        use group::tests::curve_tests;
+        use groupy::tests::curve_tests;
         curve_tests::<G2>();
     }
 }

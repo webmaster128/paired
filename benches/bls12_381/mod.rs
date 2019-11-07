@@ -7,7 +7,7 @@ mod fr;
 use rand_core::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
-use group::CurveProjective;
+use groupy::CurveProjective;
 use paired::bls12_381::*;
 use paired::{Engine, PairingCurveAffine};
 
