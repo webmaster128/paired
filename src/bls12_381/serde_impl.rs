@@ -2,7 +2,8 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use super::{Fq, FqRepr, Fr, FrRepr, G1Affine, G2Affine, G1, G2};
-use {CurveAffine, CurveProjective, EncodedPoint, PrimeField};
+use ff::PrimeField;
+use groupy::{CurveAffine, CurveProjective, EncodedPoint};
 
 use serde::de::{Error as DeserializeError, SeqAccess, Visitor};
 use serde::ser::SerializeTuple;
@@ -151,11 +152,13 @@ mod tests {
     extern crate serde_json;
 
     use super::*;
-    use bls12_381::Fq12;
+    use crate::bls12_381::Fq12;
 
     use std::fmt::Debug;
 
-    use rand::{Rng, SeedableRng, XorShiftRng};
+    use ff::Field;
+    use rand_core::SeedableRng;
+    use rand_xorshift::XorShiftRng;
 
     fn test_roundtrip<T: Serialize + for<'a> Deserialize<'a> + Debug + PartialEq>(t: &T) {
         let ser = serde_json::to_vec(t).unwrap();
@@ -164,40 +167,58 @@ mod tests {
 
     #[test]
     fn serde_g1() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
-        let g: G1 = rng.gen();
+        let mut rng = XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+
+        let g = G1::random(&mut rng);
         test_roundtrip(&g);
         test_roundtrip(&g.into_affine());
     }
 
     #[test]
     fn serde_g2() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
-        let g: G2 = rng.gen();
+        let mut rng = XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+
+        let g = G2::random(&mut rng);
         test_roundtrip(&g);
         test_roundtrip(&g.into_affine());
     }
 
     #[test]
     fn serde_fr() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
-        let f: Fr = rng.gen();
+        let mut rng = XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+        let f = Fr::random(&mut rng);
         test_roundtrip(&f);
         test_roundtrip(&f.into_repr());
     }
 
     #[test]
     fn serde_fq() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
-        let f: Fq = rng.gen();
+        let mut rng = XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+
+        let f = Fq::random(&mut rng);
         test_roundtrip(&f);
         test_roundtrip(&f.into_repr());
     }
 
     #[test]
     fn serde_fq12() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
-        let f: Fq12 = rng.gen();
+        let mut rng = XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+        let f = Fq12::random(&mut rng);
         test_roundtrip(&f);
     }
 }
