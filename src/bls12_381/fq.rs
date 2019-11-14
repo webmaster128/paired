@@ -507,7 +507,7 @@ impl Fq {
     /// number. The number is reduced mod q. The caller is
     /// responsible for ensuring the Blake2b instance was
     /// initialized with a 64 byte digest result.
-    pub(crate) fn hash(mut hasher: Blake2b) -> Self {
+    pub(crate) fn hash(hasher: Blake2b) -> Self {
         let mut repr: [u64; 8] = [0; 8];
         BigEndian::read_u64_into(hasher.finalize().as_bytes(), &mut repr);
         repr.reverse();
@@ -518,7 +518,7 @@ impl Fq {
 #[cfg(test)]
 use ff::SqrtField;
 #[cfg(test)]
-use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+use rand_core::RngCore;
 
 #[test]
 fn test_hash() {
@@ -527,10 +527,15 @@ fn test_hash() {
     hasher.update(&[0x42; 32]);
     assert!(Fq::hash(hasher).is_valid());
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
+
     let mut lsb_ones: i32 = 0;
+    let mut seed = [0u8; 32];
     for _ in 0..1000 {
-        let seed = rng.gen::<[u8; 32]>();
+        rng.fill_bytes(&mut seed);
         let mut hasher = Blake2b::new();
         hasher.update(&seed);
         let e = Fq::hash(hasher);
@@ -1291,6 +1296,11 @@ fn test_neg_one() {
     assert_eq!(NEGATIVE_ONE, o);
 }
 
+#[cfg(test)]
+use rand_core::SeedableRng;
+#[cfg(test)]
+use rand_xorshift::XorShiftRng;
+
 #[test]
 fn test_fq_repr_ordering() {
     use std::cmp::Ordering;
@@ -1512,7 +1522,10 @@ fn test_fq_repr_num_bits() {
 
 #[test]
 fn test_fq_repr_sub_noborrow() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     let mut t = FqRepr([
         0x827a4a08041ebd9,
@@ -1542,7 +1555,7 @@ fn test_fq_repr_sub_noborrow() {
     );
 
     for _ in 0..1000 {
-        let mut a = FqRepr::rand(&mut rng);
+        let mut a = Fq::random(&mut rng).into_repr();
         a.0[5] >>= 30;
         let mut b = a;
         for _ in 0..10 {
@@ -1599,7 +1612,10 @@ fn test_fq_repr_sub_noborrow() {
 
 #[test]
 fn test_fq_repr_add_nocarry() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     let mut t = FqRepr([
         0x827a4a08041ebd9,
@@ -1630,9 +1646,9 @@ fn test_fq_repr_add_nocarry() {
 
     // Test for the associativity of addition.
     for _ in 0..1000 {
-        let mut a = FqRepr::rand(&mut rng);
-        let mut b = FqRepr::rand(&mut rng);
-        let mut c = FqRepr::rand(&mut rng);
+        let mut a = Fq::random(&mut rng).into_repr();
+        let mut b = Fq::random(&mut rng).into_repr();
+        let mut c = Fq::random(&mut rng).into_repr();
 
         // Unset the first few bits, so that overflow won't occur.
         a.0[5] >>= 3;
@@ -1709,10 +1725,13 @@ fn test_fq_is_valid() {
     ]))
     .is_valid());
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     for _ in 0..1000 {
-        let a = Fq::rand(&mut rng);
+        let a = Fq::random(&mut rng);
         assert!(a.is_valid());
     }
 }
@@ -1822,13 +1841,16 @@ fn test_fq_add_assign() {
 
     // Test associativity
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     for _ in 0..1000 {
         // Generate a, b, c and ensure (a + b) + c == a + (b + c).
-        let a = Fq::rand(&mut rng);
-        let b = Fq::rand(&mut rng);
-        let c = Fq::rand(&mut rng);
+        let a = Fq::random(&mut rng);
+        let b = Fq::random(&mut rng);
+        let c = Fq::random(&mut rng);
 
         let mut tmp1 = a;
         tmp1.add_assign(&b);
@@ -1932,12 +1954,15 @@ fn test_fq_sub_assign() {
         );
     }
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     for _ in 0..1000 {
         // Ensure that (a - b) + (b - a) = 0.
-        let a = Fq::rand(&mut rng);
-        let b = Fq::rand(&mut rng);
+        let a = Fq::random(&mut rng);
+        let b = Fq::random(&mut rng);
 
         let mut tmp1 = a;
         tmp1.sub_assign(&b);
@@ -1979,13 +2004,16 @@ fn test_fq_mul_assign() {
         ]))
     );
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     for _ in 0..1000000 {
         // Ensure that (a * b) * c = a * (b * c)
-        let a = Fq::rand(&mut rng);
-        let b = Fq::rand(&mut rng);
-        let c = Fq::rand(&mut rng);
+        let a = Fq::random(&mut rng);
+        let b = Fq::random(&mut rng);
+        let c = Fq::random(&mut rng);
 
         let mut tmp1 = a;
         tmp1.mul_assign(&b);
@@ -2001,10 +2029,10 @@ fn test_fq_mul_assign() {
     for _ in 0..1000000 {
         // Ensure that r * (a + b + c) = r*a + r*b + r*c
 
-        let r = Fq::rand(&mut rng);
-        let mut a = Fq::rand(&mut rng);
-        let mut b = Fq::rand(&mut rng);
-        let mut c = Fq::rand(&mut rng);
+        let r = Fq::random(&mut rng);
+        let mut a = Fq::random(&mut rng);
+        let mut b = Fq::random(&mut rng);
+        let mut c = Fq::random(&mut rng);
 
         let mut tmp1 = a;
         tmp1.add_assign(&b);
@@ -2047,11 +2075,14 @@ fn test_fq_squaring() {
         .unwrap()
     );
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     for _ in 0..1000000 {
         // Ensure that (a * a) = a^2
-        let a = Fq::rand(&mut rng);
+        let a = Fq::random(&mut rng);
 
         let mut tmp = a;
         tmp.square();
@@ -2067,13 +2098,16 @@ fn test_fq_squaring() {
 fn test_fq_inverse() {
     assert!(Fq::zero().inverse().is_none());
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     let one = Fq::one();
 
     for _ in 0..1000 {
         // Ensure that a * a^-1 = 1
-        let mut a = Fq::rand(&mut rng);
+        let mut a = Fq::random(&mut rng);
         let ainv = a.inverse().unwrap();
         a.mul_assign(&ainv);
         assert_eq!(a, one);
@@ -2082,11 +2116,14 @@ fn test_fq_inverse() {
 
 #[test]
 fn test_fq_double() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     for _ in 0..1000 {
         // Ensure doubling a is equivalent to adding a to itself.
-        let mut a = Fq::rand(&mut rng);
+        let mut a = Fq::random(&mut rng);
         let mut b = a;
         b.add_assign(&a);
         a.double();
@@ -2103,11 +2140,14 @@ fn test_fq_negate() {
         assert!(a.is_zero());
     }
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     for _ in 0..1000 {
         // Ensure (a - (-a)) = 0.
-        let mut a = Fq::rand(&mut rng);
+        let mut a = Fq::random(&mut rng);
         let mut b = a;
         b.negate();
         a.add_assign(&b);
@@ -2118,12 +2158,15 @@ fn test_fq_negate() {
 
 #[test]
 fn test_fq_pow() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     for i in 0..1000 {
         // Exponentiate by various small numbers and ensure it consists with repeated
         // multiplication.
-        let a = Fq::rand(&mut rng);
+        let a = Fq::random(&mut rng);
         let target = a.pow(&[i]);
         let mut c = Fq::one();
         for _ in 0..i {
@@ -2134,7 +2177,7 @@ fn test_fq_pow() {
 
     for _ in 0..1000 {
         // Exponentiating by the modulus should have no effect in a prime field.
-        let a = Fq::rand(&mut rng);
+        let a = Fq::random(&mut rng);
 
         assert_eq!(a, a.pow(Fq::char()));
     }
@@ -2144,13 +2187,16 @@ fn test_fq_pow() {
 fn test_fq_sqrt() {
     use ff::SqrtField;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     assert_eq!(Fq::zero().sqrt().unwrap(), Fq::zero());
 
     for _ in 0..1000 {
         // Ensure sqrt(a^2) = a or -a
-        let a = Fq::rand(&mut rng);
+        let a = Fq::random(&mut rng);
         let mut nega = a;
         nega.negate();
         let mut b = a;
@@ -2163,7 +2209,7 @@ fn test_fq_sqrt() {
 
     for _ in 0..1000 {
         // Ensure sqrt(a)^2 = a for random a
-        let a = Fq::rand(&mut rng);
+        let a = Fq::random(&mut rng);
 
         if let Some(mut tmp) = a.sqrt() {
             tmp.square();
@@ -2222,11 +2268,14 @@ fn test_fq_from_into_repr() {
     // Zero should be in the field.
     assert!(Fq::from_repr(FqRepr::from(0)).unwrap().is_zero());
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::from_seed([
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ]);
 
     for _ in 0..1000 {
         // Try to turn Fq elements into representations and back again, and compare.
-        let a = Fq::rand(&mut rng);
+        let a = Fq::random(&mut rng);
         let a_repr = a.into_repr();
         let b_repr = FqRepr::from(a);
         assert_eq!(a_repr, b_repr);
@@ -2300,10 +2349,10 @@ fn test_fq_root_of_unity() {
 
 #[test]
 fn fq_field_tests() {
-    ::tests::field::random_field_tests::<Fq>();
-    ::tests::field::random_sqrt_tests::<Fq>();
-    ::tests::field::random_frobenius_tests::<Fq, _>(Fq::char(), 13);
-    ::tests::field::from_str_tests::<Fq>();
+    crate::tests::field::random_field_tests::<Fq>();
+    crate::tests::field::random_sqrt_tests::<Fq>();
+    crate::tests::field::random_frobenius_tests::<Fq, _>(Fq::char(), 13);
+    crate::tests::field::from_str_tests::<Fq>();
 }
 
 #[test]
@@ -2319,7 +2368,7 @@ fn test_fq_ordering() {
 
 #[test]
 fn fq_repr_tests() {
-    ::tests::repr::random_repr_tests::<FqRepr>();
+    crate::tests::repr::random_repr_tests::<Fq>();
 }
 
 #[test]

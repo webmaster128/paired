@@ -1,5 +1,8 @@
+use ff::PrimeFieldRepr;
+use groupy::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
+
 use super::*;
-use *;
+use crate::*;
 
 #[test]
 fn test_pairing_result_against_relic() {

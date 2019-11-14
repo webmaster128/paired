@@ -18,7 +18,7 @@ macro_rules! curve_impl {
         }
 
         impl ::std::fmt::Display for $affine {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                 if self.infinity {
                     write!(f, "{}(Infinity)", $name)
                 } else {
@@ -43,7 +43,7 @@ macro_rules! curve_impl {
         }
 
         impl ::std::fmt::Display for $projective {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                 write!(f, "{}", self.into_affine())
             }
         }
@@ -59,7 +59,7 @@ macro_rules! curve_impl {
 
                 if self.is_normalized() {
                     if other.is_normalized() {
-                        return self.into_affine() == other.into_affine()
+                        return self.into_affine() == other.into_affine();
                     }
                 }
 
@@ -242,12 +242,9 @@ macro_rules! curve_impl {
             type Engine = Bls12;
             type Scalar = $scalarfield;
             type Base = $basefield;
-            type Prepared = $prepared;
             type Projective = $projective;
             type Uncompressed = $uncompressed;
             type Compressed = $compressed;
-            type Pair = $pairing;
-            type PairingResult = Fq12;
 
             fn zero() -> Self {
                 $affine {
@@ -276,6 +273,16 @@ macro_rules! curve_impl {
                 }
             }
 
+            fn into_projective(&self) -> $projective {
+                (*self).into()
+            }
+        }
+
+        impl PairingCurveAffine for $affine {
+            type Prepared = $prepared;
+            type Pair = $pairing;
+            type PairingResult = Fq12;
+
             fn prepare(&self) -> Self::Prepared {
                 $prepared::from_affine(*self)
             }
@@ -283,17 +290,18 @@ macro_rules! curve_impl {
             fn pairing_with(&self, other: &Self::Pair) -> Self::PairingResult {
                 self.perform_pairing(other)
             }
-
-            fn into_projective(&self) -> $projective {
-                (*self).into()
-            }
         }
 
-        impl Rand for $projective {
-            fn rand<R: Rng>(rng: &mut R) -> Self {
+        impl CurveProjective for $projective {
+            type Engine = Bls12;
+            type Scalar = $scalarfield;
+            type Base = $basefield;
+            type Affine = $affine;
+
+            fn random<R: RngCore>(rng: &mut R) -> Self {
                 loop {
-                    let x = rng.gen();
-                    let greatest = rng.gen();
+                    let x = $basefield::random(rng);
+                    let greatest = rng.next_u32() % 2 != 0;
 
                     if let Some(p) = $affine::get_point_from_x(x, greatest) {
                         let p = p.scale_by_cofactor();
@@ -304,13 +312,6 @@ macro_rules! curve_impl {
                     }
                 }
             }
-        }
-
-        impl CurveProjective for $projective {
-            type Engine = Bls12;
-            type Scalar = $scalarfield;
-            type Base = $basefield;
-            type Affine = $affine;
 
             // The point at infinity is always represented by
             // Z = 0.
@@ -336,8 +337,7 @@ macro_rules! curve_impl {
                 self.is_zero() || self.z == $basefield::one()
             }
 
-            fn batch_normalization<S: ::std::borrow::BorrowMut<Self>>(v: &mut [S])
-            {
+            fn batch_normalization<S: std::borrow::BorrowMut<Self>>(v: &mut [S]) {
                 // Montgomery’s Trick and Fast Implementation of Masked AES
                 // Genelle, Prouff and Quisquater
                 // Section 3.2
@@ -345,8 +345,9 @@ macro_rules! curve_impl {
                 // First pass: compute [a, ab, abc, ...]
                 let mut prod = Vec::with_capacity(v.len());
                 let mut tmp = $basefield::one();
-                for g in v.iter_mut()
-	            .map(|g| g.borrow_mut())
+                for g in v
+                    .iter_mut()
+                    .map(|g| g.borrow_mut())
                     // Ignore normalized elements
                     .filter(|g| !g.is_normalized())
                 {
@@ -358,7 +359,8 @@ macro_rules! curve_impl {
                 tmp = tmp.inverse().unwrap(); // Guaranteed to be nonzero.
 
                 // Second pass: iterate backwards to compute inverses
-                for (g, s) in v.iter_mut()
+                for (g, s) in v
+                    .iter_mut()
                     .map(|g| g.borrow_mut())
                     // Backwards
                     .rev()
@@ -366,7 +368,9 @@ macro_rules! curve_impl {
                     .filter(|g| !g.is_normalized())
                     // Backwards, skip last element, fill in one for last term.
                     .zip(
-                        prod.into_iter().rev().skip(1)
+                        prod.into_iter()
+                            .rev()
+                            .skip(1)
                             .chain(Some($basefield::one())),
                     )
                 {
@@ -379,7 +383,8 @@ macro_rules! curve_impl {
                 }
 
                 // Perform affine transformations
-                for g in v.iter_mut()
+                for g in v
+                    .iter_mut()
                     .map(|g| g.borrow_mut())
                     .filter(|g| !g.is_normalized())
                 {
@@ -673,6 +678,7 @@ macro_rules! curve_impl {
                 // For instance, the first oracle in group G1 appends: "G1_0".
                 let mut hasher_0 = blake2b_simd::State::new();
                 hasher_0.update(msg);
+                #[allow(clippy::string_lit_as_bytes)]
                 hasher_0.update($name.as_bytes());
                 let mut hasher_1 = hasher_0.clone();
 
@@ -742,15 +748,22 @@ macro_rules! curve_impl {
                 }
             }
         }
+
         #[cfg(test)]
-        use rand::{SeedableRng, XorShiftRng};
+        use rand_core::SeedableRng;
+        #[cfg(test)]
+        use rand_xorshift::XorShiftRng;
 
         #[test]
         fn test_hash() {
-            let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+            let mut rng = XorShiftRng::from_seed([
+                0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+                0xbc, 0xe5,
+            ]);
 
+            let mut seed: [u8; 32] = [0u8; 32];
             for _ in 0..100 {
-                let seed: [u8; 32] = rng.gen();
+                rng.fill_bytes(&mut seed);
                 let p = $projective::hash(&seed).into_affine();
                 assert!(!p.is_zero());
                 assert!(p.is_on_curve());
@@ -760,10 +773,13 @@ macro_rules! curve_impl {
 
         #[test]
         fn test_sw_encode() {
-            let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+            let mut rng = XorShiftRng::from_seed([
+                0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+                0xbc, 0xe5,
+            ]);
 
             for _ in 0..100 {
-                let mut t = $basefield::rand(&mut rng);
+                let mut t = $basefield::random(&mut rng);
                 let p = $affine::sw_encode(t);
                 assert!(p.is_on_curve());
                 assert!(!p.is_zero());
@@ -778,51 +794,51 @@ macro_rules! curve_impl {
 }
 
 macro_rules! encoded_point_delegations {
-	($t:ident) => {
-
-	    impl AsRef<[u8]> for $t {
-	        fn as_ref(&self) -> &[u8] {
-	            &self.0
-	        }
-	    }
-	    impl AsMut<[u8]> for $t {
-	        fn as_mut(&mut self) -> &mut [u8] {
-	            &mut self.0
-	        }
-	    }
-
-	    impl PartialEq for $t {
-	        fn eq(&self, other: &$t) -> bool {
-				PartialEq::eq(&self.0[..], &other.0[..]) 
-			}
+    ($t:ident) => {
+        impl AsRef<[u8]> for $t {
+            fn as_ref(&self) -> &[u8] {
+                &self.0
+            }
         }
-	    impl Eq for $t { }
-        impl PartialOrd for $t {
-			fn partial_cmp(&self, other: &$t) -> Option<::std::cmp::Ordering> {
-				PartialOrd::partial_cmp(&self.0[..], &other.0[..])
-			}
-		}
-        impl Ord for $t {
-	        fn cmp(&self, other: &Self) -> ::std::cmp::Ordering {
-				Ord::cmp(&self.0[..], &other.0[..])
-	        }
-	    }
+        impl AsMut<[u8]> for $t {
+            fn as_mut(&mut self) -> &mut [u8] {
+                &mut self.0
+            }
+        }
 
-		impl ::std::hash::Hash for $t {
-	        fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
-	        	self.0[..].hash(state);
-	        }
-		}
-	}
+        impl PartialEq for $t {
+            fn eq(&self, other: &$t) -> bool {
+                PartialEq::eq(&self.0[..], &other.0[..])
+            }
+        }
+        impl Eq for $t {}
+        impl PartialOrd for $t {
+            fn partial_cmp(&self, other: &$t) -> Option<::std::cmp::Ordering> {
+                PartialOrd::partial_cmp(&self.0[..], &other.0[..])
+            }
+        }
+        impl Ord for $t {
+            fn cmp(&self, other: &Self) -> ::std::cmp::Ordering {
+                Ord::cmp(&self.0[..], &other.0[..])
+            }
+        }
+
+        impl ::std::hash::Hash for $t {
+            fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+                self.0[..].hash(state);
+            }
+        }
+    };
 } // encoded_point_delegations
 
 pub mod g1 {
     use super::super::{Bls12, Fq, Fq12, FqRepr, Fr, FrRepr};
     use super::g2::G2Affine;
+    use crate::{Engine, PairingCurveAffine};
     use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
-    use rand::{Rand, Rng};
+    use groupy::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
+    use rand_core::RngCore;
     use std::fmt;
-    use {CurveAffine, CurveProjective, EncodedPoint, Engine, GroupDecodingError};
 
     curve_impl!(
         "G1",
@@ -842,7 +858,7 @@ pub mod g1 {
     encoded_point_delegations!(G1Uncompressed);
 
     impl fmt::Debug for G1Uncompressed {
-        fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
             self.0[..].fmt(formatter)
         }
     }
@@ -942,7 +958,7 @@ pub mod g1 {
     encoded_point_delegations!(G1Compressed);
 
     impl fmt::Debug for G1Compressed {
-        fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
             self.0[..].fmt(formatter)
         }
     }
@@ -1110,7 +1126,7 @@ pub mod g1 {
 
     #[test]
     fn g1_generator() {
-        use SqrtField;
+        use crate::SqrtField;
 
         let mut x = Fq::zero();
         let mut i = 0;
@@ -1128,7 +1144,7 @@ pub mod g1 {
                 let negyrepr = negy.into_repr();
 
                 let p = G1Affine {
-                    x: x,
+                    x,
                     y: if yrepr < negyrepr { y } else { negy },
                     infinity: false,
                 };
@@ -1509,17 +1525,19 @@ pub mod g1 {
 
     #[test]
     fn g1_curve_tests() {
-        ::tests::curve::curve_tests::<G1>();
+        use groupy::tests::curve_tests;
+        curve_tests::<G1>();
     }
 }
 
 pub mod g2 {
     use super::super::{Bls12, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr};
     use super::g1::G1Affine;
+    use crate::{Engine, PairingCurveAffine};
     use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
-    use rand::{Rand, Rng};
+    use groupy::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
+    use rand_core::RngCore;
     use std::fmt;
-    use {CurveAffine, CurveProjective, EncodedPoint, Engine, GroupDecodingError};
 
     curve_impl!(
         "G2",
@@ -1539,7 +1557,7 @@ pub mod g2 {
     encoded_point_delegations!(G2Uncompressed);
 
     impl fmt::Debug for G2Uncompressed {
-        fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
             self.0[..].fmt(formatter)
         }
     }
@@ -1655,7 +1673,7 @@ pub mod g2 {
     encoded_point_delegations!(G2Compressed);
 
     impl fmt::Debug for G2Compressed {
-        fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
             self.0[..].fmt(formatter)
         }
     }
@@ -1844,7 +1862,7 @@ pub mod g2 {
 
     #[test]
     fn g2_generator() {
-        use SqrtField;
+        use crate::SqrtField;
 
         let mut x = Fq2::zero();
         let mut i = 0;
@@ -1860,7 +1878,7 @@ pub mod g2 {
                 negy.negate();
 
                 let p = G2Affine {
-                    x: x,
+                    x,
                     y: if y < negy { y } else { negy },
                     infinity: false,
                 };
@@ -2307,7 +2325,8 @@ pub mod g2 {
 
     #[test]
     fn g2_curve_tests() {
-        ::tests::curve::curve_tests::<G2>();
+        use groupy::tests::curve_tests;
+        curve_tests::<G2>();
     }
 }
 

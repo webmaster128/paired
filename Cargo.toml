@@ -7,24 +7,31 @@ authors = [
     "Sean Bowe <ewillbefull@gmail.com>",
     "Jack Grigg <jack@z.cash>",
 ]
+readme = "README.md"
 license = "MIT/Apache-2.0"
 
 description = "Pairing-friendly elliptic curve library"
 documentation = "https://docs.rs/paired/"
 homepage = "https://github.com/filecoin-project/paired"
 repository = "https://github.com/filecoin-project/paired"
+edition ="2018"
 
 [dependencies]
-rand = "0.4"
 byteorder = "1"
-ff = { version = "0.4", features = ["derive"] }
 blake2b_simd = "0.5"
 serde = { version = "1.0", optional = true, features = ["derive"] }
+ff = { version = "0.5.0", features = ["derive"] }
+groupy = { version = "0.2.0" }
+rand_core = "0.5"
+
+[dev-dependencies]
+rand_xorshift = "0.2"
+serde_json = "1.0"
 
 [features]
 unstable-features = ["expose-arith"]
 expose-arith = []
 default = []
 
-[dev-dependencies]
-serde_json = "1.0"
+[badges]
+maintenance = { status = "actively-developed" }
