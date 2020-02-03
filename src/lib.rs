@@ -14,8 +14,6 @@
 #![deny(intra_doc_link_resolution_failure)]
 // Force public structures to implement Debug
 #![deny(missing_debug_implementations)]
-// Needed for ff
-#![feature(asm)]
 
 #[cfg(test)]
 pub mod tests;
