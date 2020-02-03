@@ -35,3 +35,6 @@ default = []
 
 [badges]
 maintenance = { status = "actively-developed" }
+
+[patch.crates-io]
+ff = { git = "https://github.com/filecoin-project/ff", branch = "asm" }
