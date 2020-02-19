@@ -9,6 +9,7 @@ mod fq6;
 mod fr;
 
 mod cofactors;
+mod signum;
 
 #[cfg(feature = "serde")]
 mod serde_impl;
@@ -26,11 +27,12 @@ pub use self::fq6::Fq6;
 pub use self::fr::{Fr, FrRepr};
 
 pub use self::cofactors::ClearH;
+pub use self::signum::{Sgn0Result, Signum0};
 
 use super::{Engine, PairingCurveAffine};
 
 use fff::{BitIterator, Field, ScalarEngine};
-use groupy::CurveAffine;
+use groupy::{CurveAffine, CurveProjective};
 
 // The BLS parameter x for BLS12-381 is -0xd201000000010000
 const BLS_X: u64 = 0xd201000000010000;
@@ -377,6 +379,14 @@ impl G2Prepared {
 pub trait IsogenyMap {
     /// Eavluate isogeny map.
     fn isogeny_map(&mut self);
+}
+
+/// Trait executing Optimized Simplified SWU maps.
+///
+/// Implemented for G1 and G2 based on https://eprint.iacr.org/2019/403.
+pub trait OsswuMap: CurveProjective {
+    /// Evaluate optimized simplified SWU map on supplied base field element.
+    fn osswu_map(u: &<Self as CurveProjective>::Base) -> Self;
 }
 
 #[test]

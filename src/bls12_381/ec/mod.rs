@@ -918,8 +918,10 @@ macro_rules! encoded_point_delegations {
     };
 } // encoded_point_delegations
 
+mod chain;
 mod g1;
 mod g2;
+mod util;
 
 pub use self::g1::*;
 pub use self::g2::*;

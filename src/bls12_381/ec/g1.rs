@@ -5,8 +5,10 @@ use groupy::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
 use lazy_static::lazy_static;
 use rand_core::RngCore;
 
-use super::super::{Bls12, Fq, Fq12, FqRepr, Fr, FrRepr, IsogenyMap};
+use super::super::{Bls12, Fq, Fq12, FqRepr, Fr, FrRepr, IsogenyMap, OsswuMap, Signum0};
+use super::chain::chain_pm3div4;
 use super::g2::G2Affine;
+use super::util::osswu_helper;
 use crate::{Engine, PairingCurveAffine};
 
 curve_impl!(
@@ -749,6 +751,42 @@ lazy_static! {
             0x15f65ec3fa80e493,
         ])),
     ]};
+
+    static ref ELLP_A: Fq = unsafe {Fq::from_repr_raw(FqRepr([
+        0x2f65aa0e9af5aa51u64,
+        0x86464c2d1e8416c3u64,
+        0xb85ce591b7bd31e2u64,
+        0x27e11c91b5f24e7cu64,
+        0x28376eda6bfc1835u64,
+        0x155455c3e5071d85u64,
+    ])) };
+
+    static ref ELLP_B: Fq = unsafe {Fq::from_repr_raw(FqRepr([
+        0xfb996971fe22a1e0u64,
+        0x9aa93eb35b742d6fu64,
+        0x8c476013de99c5c4u64,
+        0x873e27c3a221e571u64,
+        0xca72b5e45a52d888u64,
+        0x06824061418a386bu64,
+    ])) };
+
+    static ref XI: Fq = unsafe { Fq::from_repr_raw(FqRepr([
+        0x886c00000023ffdcu64,
+        0xf70008d3090001du64,
+        0x77672417ed5828c3u64,
+        0x9dac23e943dc1740u64,
+        0x50553f1b9c131521u64,
+        0x78c712fbe0ab6e8u64,
+    ])) };
+
+    static ref SQRT_M_XI_CUBED: Fq = unsafe { Fq::from_repr_raw(FqRepr([
+        0x43b571cad3215f1fu64,
+        0xccb460ef1c702dc2u64,
+        0x742d884f4f97100bu64,
+        0xdb2c3e3238a3382bu64,
+        0xe40f3fa13fce8f88u64,
+        0x73a2af9892a2ffu64,
+    ])) };
 }
 
 impl IsogenyMap for G1 {
@@ -757,9 +795,64 @@ impl IsogenyMap for G1 {
     }
 }
 
+impl OsswuMap for G1 {
+    fn osswu_map(u: &Fq) -> G1 {
+        // compute x0 and g(x0)
+        let [usq, xi_usq, _, x0_num, x0_den, gx0_num, gx0_den] =
+            osswu_helper(u, &XI, &ELLP_A, &ELLP_B);
+
+        // compute g(X0(u)) ^ ((p - 3) // 4)
+        let sqrt_candidate = {
+            let mut tmp1 = gx0_num;
+            tmp1.mul_assign(&gx0_den); // u * v
+            let mut tmp2 = gx0_den;
+            tmp2.square(); // v^2
+            tmp2.mul_assign(&tmp1); // u * v^3
+            let tmp3 = tmp2;
+            chain_pm3div4(&mut tmp2, &tmp3); // (u v^3) ^ ((p - 3) // 4)
+            tmp2.mul_assign(&tmp1); // u v (u v^3) ^ ((p - 3) // 4)
+            tmp2
+        };
+
+        // select correct values for y and for x numerator
+        let (mut x_num, mut y) = {
+            let mut test_cand = sqrt_candidate;
+            test_cand.square();
+            test_cand.mul_assign(&gx0_den);
+            if test_cand == gx0_num {
+                (x0_num, sqrt_candidate) // g(x0) is square
+            } else {
+                let mut x1_num = x0_num; // g(x1) is square
+                x1_num.mul_assign(&xi_usq); // x1 = xi u^2 g(x0)
+                let mut y1 = usq; // y1 = sqrt(-xi**3) * u^3 g(x0) ^ ((p - 1) // 4)
+                y1.mul_assign(&u);
+                y1.mul_assign(&sqrt_candidate);
+                y1.mul_assign(&SQRT_M_XI_CUBED);
+                (x1_num, y1)
+            }
+        };
+
+        // make sure sign of y and sign of u agree
+        let sgn0_y_xor_u = y.sgn0() ^ u.sgn0();
+        y.negate_if(sgn0_y_xor_u);
+
+        // convert to projective
+        x_num.mul_assign(&x0_den); // x_num * x_den / x_den^2 = x_num / x_den
+        y.mul_assign(&gx0_den); // y * x_den^3 / x_den^3 = y
+
+        G1 {
+            x: x_num,
+            y,
+            z: x0_den,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use super::super::util::check_g_prime;
 
     #[test]
     fn g1_generator() {
@@ -1297,5 +1390,269 @@ mod tests {
             ]))
             .unwrap()
         );
+    }
+
+    fn check_g1_prime(x: &Fq, y: &Fq, z: &Fq) {
+        check_g_prime(x, y, z, &ELLP_A, &ELLP_B);
+    }
+
+    #[test]
+    fn test_osswu_g1() {
+        // exceptional case: zero
+        let p = G1::osswu_map(&Fq::zero());
+        let G1 { x, y, z } = &p;
+        let xo = Fq::from_repr(FqRepr([
+            0x6144f0e146df0250u64,
+            0x9e9fd4264a7edcbau64,
+            0x519289c2e473a9c7u64,
+            0xfc9e9c179c1c484fu64,
+            0x1bde5cc11dc20ba5u64,
+            0x119d96b86f8b3b8bu64,
+        ]))
+        .unwrap();
+        let yo = Fq::from_repr(FqRepr([
+            0x2c26d31ff8057aa2u64,
+            0x9f824897b954500eu64,
+            0xd6b1bcf4165f3575u64,
+            0x8d267d9b89fb2b31u64,
+            0x905bde90d4b39d8au64,
+            0x8327183f6473933u64,
+        ]))
+        .unwrap();
+        let zo = Fq::from_repr(FqRepr([
+            0xfe7db859f2cb453fu64,
+            0x8e55cb15e9aab878u64,
+            0x51fe89284e4d926au64,
+            0x9a148b96ab3e6941u64,
+            0xa3857e1ea7b2289du64,
+            0xdf088f08f205e3u64,
+        ]))
+        .unwrap();
+        assert_eq!(x, &xo);
+        assert_eq!(y, &yo);
+        assert_eq!(z, &zo);
+        check_g1_prime(x, y, z);
+
+        // exceptional case: sqrt(-1/XI) (positive)
+        let excp = Fq::from_repr(FqRepr([
+            0x7cc51062bde821b8u64,
+            0x88b69520ee5c57fbu64,
+            0x46edbdd403fc310u64,
+            0x12f01df4948d09ffu64,
+            0xdb38f4a9a3d71bdau64,
+            0x1f7462c8b6cbf74u64,
+        ]))
+        .unwrap();
+        let p = G1::osswu_map(&excp);
+        let G1 { x, y, z } = &p;
+        assert_eq!(x, &xo);
+        assert_eq!(y, &yo);
+        assert_eq!(z, &zo);
+        check_g1_prime(x, y, z);
+
+        // exceptional case: sqrt(-1/XI) (negative)
+        let excp = Fq::from_repr(FqRepr([
+            0x3d39ef9d421788f3u64,
+            0x95f56addc2f7a804u64,
+            0x62c1f6c3b6713313u64,
+            0x51872d905ef808c0u64,
+            0x6fe2b30c9f7490fdu64,
+            0x1809cbbdae132725u64,
+        ]))
+        .unwrap();
+        let p = G1::osswu_map(&excp);
+        let G1 { x, y, z } = &p;
+        let myo = {
+            let mut tmp = yo;
+            tmp.negate();
+            tmp
+        };
+        assert_eq!(x, &xo);
+        assert_eq!(y, &myo);
+        assert_eq!(z, &zo);
+        check_g1_prime(x, y, z);
+
+        let u = Fq::from_repr(FqRepr([
+            0xd4e2aa3bbf9a8255u64,
+            0xa79f2ece3390978cu64,
+            0x48c1a8fdff541ebau64,
+            0x2b17303f8af1ec82u64,
+            0x86657cd3fc3d08b5u64,
+            0x14f05da1ad4eddc8u64,
+        ]))
+        .unwrap();
+        let xo = Fq::from_repr(FqRepr([
+            0xb8e5b32b10dd26f7u64,
+            0x8a114aa4ef26ad27u64,
+            0xad97709b49ae7c62u64,
+            0x9bc765ec50b53945u64,
+            0xae99d020a70ca4feu64,
+            0x1803cbf9bd2e3815u64,
+        ]))
+        .unwrap();
+        let yo = Fq::from_repr(FqRepr([
+            0x498ec4b38b052163u64,
+            0xdfb4b3c21c64a917u64,
+            0xa6ad223eeba44938u64,
+            0xa564373b4a3b1d49u64,
+            0x4f3ba7671555ba8eu64,
+            0x141f3b7a3a3bc9a1u64,
+        ]))
+        .unwrap();
+        let zo = Fq::from_repr(FqRepr([
+            0xc75f9dc8b69d09eeu64,
+            0x80824ef4608083ceu64,
+            0xfcd339725e80194au64,
+            0xda50cf8999450757u64,
+            0x35da50fd75b53f96u64,
+            0xade87be1822999bu64,
+        ]))
+        .unwrap();
+        let p = G1::osswu_map(&u);
+        let G1 { x, y, z } = &p;
+        assert_eq!(x, &xo);
+        assert_eq!(y, &yo);
+        assert_eq!(z, &zo);
+        check_g1_prime(x, y, z);
+
+        let u = Fq::from_repr(FqRepr([
+            0xdfad7422a0bab889u64,
+            0x4a70b9f85b2c6f5au64,
+            0xc042f72ce88d22f5u64,
+            0x5be4f1d4b77bef62u64,
+            0x99207c0238d7ab04u64,
+            0x6135a609e9aad26u64,
+        ]))
+        .unwrap();
+        let xo = Fq::from_repr(FqRepr([
+            0xc43f22e4c5179aa6u64,
+            0x90750edf071b3149u64,
+            0xddd1fb0b077b1269u64,
+            0xf5cef22203523563u64,
+            0x6c65968a7d59fffcu64,
+            0x9ced6809e9858aeu64,
+        ]))
+        .unwrap();
+        let yo = Fq::from_repr(FqRepr([
+            0xdc8a4684944f05adu64,
+            0x413c96b605fa42c3u64,
+            0x9a8be21d1e63b20eu64,
+            0xa86a30f86322e838u64,
+            0x77ac5472b64d30abu64,
+            0x53119aa51ffec68u64,
+        ]))
+        .unwrap();
+        let zo = Fq::from_repr(FqRepr([
+            0xa36fa20f6ddcdbfdu64,
+            0x517e8ce7336e879au64,
+            0xba98cb9cd4519e1eu64,
+            0x7537ed7e920203a5u64,
+            0xab59f2690f27e4d9u64,
+            0x14fac872814de6e3u64,
+        ]))
+        .unwrap();
+        let p = G1::osswu_map(&u);
+        let G1 { x, y, z } = &p;
+        assert_eq!(x, &xo);
+        assert_eq!(y, &yo);
+        assert_eq!(z, &zo);
+        check_g1_prime(x, y, z);
+
+        let u = Fq::from_repr(FqRepr([
+            0xaf50b546edfc358au64,
+            0x3f1897a2f38a122eu64,
+            0xdad7bf8fa9eb51beu64,
+            0x34c9f03ed6c4ba66u64,
+            0x9ee6db517906e388u64,
+            0x1097781715e5c672u64,
+        ]))
+        .unwrap();
+        let xo = Fq::from_repr(FqRepr([
+            0x8f0c1b27b7d153a1u64,
+            0xef591e984e7736c9u64,
+            0x7eb7353e36c7a10eu64,
+            0xa13c0d70a7f3a5a0u64,
+            0x84e37fc496ea7683u64,
+            0xfe619171ecfcbd6u64,
+        ]))
+        .unwrap();
+        let yo = Fq::from_repr(FqRepr([
+            0xdc73edc70e39fe42u64,
+            0x62ecf6761ff9930fu64,
+            0x18187783faab9a4cu64,
+            0xaf8e80ddfe379c09u64,
+            0xfc8ef86e038520aau64,
+            0xc5fca1550de691du64,
+        ]))
+        .unwrap();
+        let zo = Fq::from_repr(FqRepr([
+            0x5b66b6ee03f15298u64,
+            0x89237edcc40aed57u64,
+            0x37259c742eca1bb1u64,
+            0xe70fee0572e60397u64,
+            0x22fce25b7e2597b9u64,
+            0x18e223a3b11df7a4u64,
+        ]))
+        .unwrap();
+        let p = G1::osswu_map(&u);
+        let G1 { x, y, z } = &p;
+        assert_eq!(x, &xo);
+        assert_eq!(y, &yo);
+        assert_eq!(z, &zo);
+        check_g1_prime(x, y, z);
+
+        let u = Fq::from_repr(FqRepr([
+            0xea84b00658419fc4u64,
+            0xdc23cabb1c5bedd0u64,
+            0x51b2c9560f33a8d5u64,
+            0xdce76c736ec4a3d3u64,
+            0xaed02316b6641449u64,
+            0x17c2c631ba5d8bebu64,
+        ]))
+        .unwrap();
+        let xo = Fq::from_repr(FqRepr([
+            0x4387a325ed54b1d1u64,
+            0x9e27b0edabd4fe91u64,
+            0xca40b0c21fecd54u64,
+            0x7fb2ac0251eee168u64,
+            0x89a3fb041cc9ad83u64,
+            0x163ba2f38efc6de4u64,
+        ]))
+        .unwrap();
+        let yo = Fq::from_repr(FqRepr([
+            0x8e4021829edb5acau64,
+            0x69f8104daa66ea3eu64,
+            0x8e0604fc190b8ad0u64,
+            0x661e41dc536ff246u64,
+            0x1838aaa49432898fu64,
+            0x899f70d9a4252d5u64,
+        ]))
+        .unwrap();
+        let zo = Fq::from_repr(FqRepr([
+            0x2e88745aee5b0da3u64,
+            0x5ce92018233a731fu64,
+            0x2fac5fa03579f6f7u64,
+            0x69c2227c1dbcf7b4u64,
+            0x65aded420fb38ca4u64,
+            0x24327b6cd1e6b84u64,
+        ]))
+        .unwrap();
+        let p = G1::osswu_map(&u);
+        let G1 { x, y, z } = &p;
+        assert_eq!(x, &xo);
+        assert_eq!(y, &yo);
+        assert_eq!(z, &zo);
+        check_g1_prime(x, y, z);
+
+        let mut rng = rand_xorshift::XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+        for _ in 0..32 {
+            let input = Fq::random(&mut rng);
+            let p = G1::osswu_map(&input);
+            let G1 { x, y, z } = &p;
+            check_g1_prime(x, y, z);
+        }
     }
 }
