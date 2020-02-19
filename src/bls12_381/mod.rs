@@ -373,6 +373,12 @@ impl G2Prepared {
     }
 }
 
+/// Evaluate isogeny map from curve with non-zero j-invariant.
+pub trait IsogenyMap {
+    /// Eavluate isogeny map.
+    fn isogeny_map(&mut self);
+}
+
 #[test]
 fn bls12_engine_tests() {
     crate::tests::engine::engine_tests::<Bls12>();
