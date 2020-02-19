@@ -53,6 +53,7 @@ pub(super) fn chain_z<PtT: CurveProjective>(var1: &mut PtT, var0: &PtT) {
 
 // chain for 3 * (z^2 - 1) * h2, used to clear cofactor
 // compatibly with Budroni-Pintore GLV-based method
+#[allow(clippy::cognitive_complexity)]
 fn chain_h2_eff<PtT: CurveProjective>(var1: &mut PtT, var0: &PtT) {
     // addchain for
     // 305502333931268344200999753193121504214466019254188142667664032982267604182971884026507427359259977847832272839041616661285803823378372096355777062779109
