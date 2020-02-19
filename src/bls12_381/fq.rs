@@ -487,7 +487,7 @@ const F_2_256: Fq = Fq(FqRepr([
 #[derive(PrimeField)]
 #[PrimeFieldModulus = "4002409555221667393417789825735904156556882819939007885332058136124031650490837864442687629129015664037894272559787"]
 #[PrimeFieldGenerator = "2"]
-pub struct Fq(FqRepr);
+pub struct Fq(pub(crate) FqRepr);
 
 impl Fq {
     pub(crate) fn parity(&self) -> bool {

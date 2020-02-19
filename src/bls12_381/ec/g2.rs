@@ -2,7 +2,6 @@ use std::fmt;
 
 use fff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
 use groupy::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
-use lazy_static::lazy_static;
 use rand_core::RngCore;
 
 use super::super::{Bls12, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr, IsogenyMap, OsswuMap};
@@ -333,500 +332,498 @@ pub struct G2Prepared {
     pub(crate) infinity: bool,
 }
 
-lazy_static! {
-    /// Coefficients of the 3-isogeny x map's numerator
-    static ref XNUM: [Fq2; 4] = unsafe {[
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x47f671c71ce05e62,
-                0x06dd57071206393e,
-                0x7c80cd2af3fd71a2,
-                0x048103ea9e6cd062,
-                0xc54516acc8d037f6,
-                0x13808f550920ea41,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x47f671c71ce05e62,
-                0x06dd57071206393e,
-                0x7c80cd2af3fd71a2,
-                0x048103ea9e6cd062,
-                0xc54516acc8d037f6,
-                0x13808f550920ea41,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x5fe55555554c71d0,
-                0x873fffdd236aaaa3,
-                0x6a6b4619b26ef918,
-                0x21c2888408874945,
-                0x2836cda7028cabc5,
-                0x0ac73310a7fd5abd,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x0a0c5555555971c3,
-                0xdb0c00101f9eaaae,
-                0xb1fb2f941d797997,
-                0xd3960742ef416e1c,
-                0xb70040e2c20556f4,
-                0x149d7861e581393b,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0xaff2aaaaaaa638e8,
-                0x439fffee91b55551,
-                0xb535a30cd9377c8c,
-                0x90e144420443a4a2,
-                0x941b66d3814655e2,
-                0x0563998853fead5e,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x40aac71c71c725ed,
-                0x190955557a84e38e,
-                0xd817050a8f41abc3,
-                0xd86485d4c87f6fb1,
-                0x696eb479f885d059,
-                0x198e1a74328002d2,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-            ])),
-        },
-    ]};
+/// Coefficients of the 3-isogeny x map's numerator
+const XNUM: [Fq2; 4] = [
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x47f671c71ce05e62,
+            0x06dd57071206393e,
+            0x7c80cd2af3fd71a2,
+            0x048103ea9e6cd062,
+            0xc54516acc8d037f6,
+            0x13808f550920ea41,
+        ])),
+        c1: Fq(FqRepr([
+            0x47f671c71ce05e62,
+            0x06dd57071206393e,
+            0x7c80cd2af3fd71a2,
+            0x048103ea9e6cd062,
+            0xc54516acc8d037f6,
+            0x13808f550920ea41,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+        ])),
+        c1: Fq(FqRepr([
+            0x5fe55555554c71d0,
+            0x873fffdd236aaaa3,
+            0x6a6b4619b26ef918,
+            0x21c2888408874945,
+            0x2836cda7028cabc5,
+            0x0ac73310a7fd5abd,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x0a0c5555555971c3,
+            0xdb0c00101f9eaaae,
+            0xb1fb2f941d797997,
+            0xd3960742ef416e1c,
+            0xb70040e2c20556f4,
+            0x149d7861e581393b,
+        ])),
+        c1: Fq(FqRepr([
+            0xaff2aaaaaaa638e8,
+            0x439fffee91b55551,
+            0xb535a30cd9377c8c,
+            0x90e144420443a4a2,
+            0x941b66d3814655e2,
+            0x0563998853fead5e,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x40aac71c71c725ed,
+            0x190955557a84e38e,
+            0xd817050a8f41abc3,
+            0xd86485d4c87f6fb1,
+            0x696eb479f885d059,
+            0x198e1a74328002d2,
+        ])),
+        c1: Fq(FqRepr([
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+        ])),
+    },
+];
 
-    /// Coefficients of the 3-isogeny x map's denominator
-    static ref XDEN: [Fq2; 3] = unsafe {[
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x1f3affffff13ab97,
-                0xf25bfc611da3ff3e,
-                0xca3757cb3819b208,
-                0x3e6427366f8cec18,
-                0x03977bc86095b089,
-                0x04f69db13f39a952,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x447600000027552e,
-                0xdcb8009a43480020,
-                0x6f7ee9ce4a6e8b59,
-                0xb10330b7c0a95bc6,
-                0x6140b1fcfb1e54b7,
-                0x0381be097f0bb4e1,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x7588ffffffd8557d,
-                0x41f3ff646e0bffdf,
-                0xf7b1e8d2ac426aca,
-                0xb3741acd32dbb6f8,
-                0xe9daf5b9482d581f,
-                0x167f53e0ba7431b8,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x760900000002fffd,
-                0xebf4000bc40c0002,
-                0x5f48985753c758ba,
-                0x77ce585370525745,
-                0x5c071a97a256ec6d,
-                0x15f65ec3fa80e493,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-            ])),
-        },
-    ]};
+/// Coefficients of the 3-isogeny x map's denominator
+const XDEN: [Fq2; 3] = [
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+        ])),
+        c1: Fq(FqRepr([
+            0x1f3affffff13ab97,
+            0xf25bfc611da3ff3e,
+            0xca3757cb3819b208,
+            0x3e6427366f8cec18,
+            0x03977bc86095b089,
+            0x04f69db13f39a952,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x447600000027552e,
+            0xdcb8009a43480020,
+            0x6f7ee9ce4a6e8b59,
+            0xb10330b7c0a95bc6,
+            0x6140b1fcfb1e54b7,
+            0x0381be097f0bb4e1,
+        ])),
+        c1: Fq(FqRepr([
+            0x7588ffffffd8557d,
+            0x41f3ff646e0bffdf,
+            0xf7b1e8d2ac426aca,
+            0xb3741acd32dbb6f8,
+            0xe9daf5b9482d581f,
+            0x167f53e0ba7431b8,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x760900000002fffd,
+            0xebf4000bc40c0002,
+            0x5f48985753c758ba,
+            0x77ce585370525745,
+            0x5c071a97a256ec6d,
+            0x15f65ec3fa80e493,
+        ])),
+        c1: Fq(FqRepr([
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+        ])),
+    },
+];
 
-    /// Coefficients of the 3-isogeny y map's numerator
-    static ref YNUM: [Fq2; 4] = unsafe {[
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x96d8f684bdfc77be,
-                0xb530e4f43b66d0e2,
-                0x184a88ff379652fd,
-                0x57cb23ecfae804e1,
-                0x0fd2e39eada3eba9,
-                0x08c8055e31c5d5c3,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x96d8f684bdfc77be,
-                0xb530e4f43b66d0e2,
-                0x184a88ff379652fd,
-                0x57cb23ecfae804e1,
-                0x0fd2e39eada3eba9,
-                0x08c8055e31c5d5c3,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0xbf0a71c71c91b406,
-                0x4d6d55d28b7638fd,
-                0x9d82f98e5f205aee,
-                0xa27aa27b1d1a18d5,
-                0x02c3b2b2d2938e86,
-                0x0c7d13420b09807f,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0xd7f9555555531c74,
-                0x21cffff748daaaa8,
-                0x5a9ad1866c9bbe46,
-                0x4870a2210221d251,
-                0x4a0db369c0a32af1,
-                0x02b1ccc429ff56af,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0xe205aaaaaaac8e37,
-                0xfcdc000768795556,
-                0x0c96011a8a1537dd,
-                0x1c06a963f163406e,
-                0x010df44c82a881e6,
-                0x174f45260f808feb,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0xa470bda12f67f35c,
-                0xc0fe38e23327b425,
-                0xc9d3d0f2c6f0678d,
-                0x1c55c9935b5a982e,
-                0x27f6c0e2f0746764,
-                0x117c5e6e28aa9054,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-            ])),
-        },
-    ]};
+/// Coefficients of the 3-isogeny y map's numerator
+const YNUM: [Fq2; 4] = [
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x96d8f684bdfc77be,
+            0xb530e4f43b66d0e2,
+            0x184a88ff379652fd,
+            0x57cb23ecfae804e1,
+            0x0fd2e39eada3eba9,
+            0x08c8055e31c5d5c3,
+        ])),
+        c1: Fq(FqRepr([
+            0x96d8f684bdfc77be,
+            0xb530e4f43b66d0e2,
+            0x184a88ff379652fd,
+            0x57cb23ecfae804e1,
+            0x0fd2e39eada3eba9,
+            0x08c8055e31c5d5c3,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+        ])),
+        c1: Fq(FqRepr([
+            0xbf0a71c71c91b406,
+            0x4d6d55d28b7638fd,
+            0x9d82f98e5f205aee,
+            0xa27aa27b1d1a18d5,
+            0x02c3b2b2d2938e86,
+            0x0c7d13420b09807f,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0xd7f9555555531c74,
+            0x21cffff748daaaa8,
+            0x5a9ad1866c9bbe46,
+            0x4870a2210221d251,
+            0x4a0db369c0a32af1,
+            0x02b1ccc429ff56af,
+        ])),
+        c1: Fq(FqRepr([
+            0xe205aaaaaaac8e37,
+            0xfcdc000768795556,
+            0x0c96011a8a1537dd,
+            0x1c06a963f163406e,
+            0x010df44c82a881e6,
+            0x174f45260f808feb,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0xa470bda12f67f35c,
+            0xc0fe38e23327b425,
+            0xc9d3d0f2c6f0678d,
+            0x1c55c9935b5a982e,
+            0x27f6c0e2f0746764,
+            0x117c5e6e28aa9054,
+        ])),
+        c1: Fq(FqRepr([
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+        ])),
+    },
+];
 
-    /// Coefficients of the 3-isogeny y map's denominator
-    static ref YDEN: [Fq2; 4] = unsafe {[
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x0162fffffa765adf,
-                0x8f7bea480083fb75,
-                0x561b3c2259e93611,
-                0x11e19fc1a9c875d5,
-                0xca713efc00367660,
-                0x03c6a03d41da1151,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x0162fffffa765adf,
-                0x8f7bea480083fb75,
-                0x561b3c2259e93611,
-                0x11e19fc1a9c875d5,
-                0xca713efc00367660,
-                0x03c6a03d41da1151,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x5db0fffffd3b02c5,
-                0xd713f52358ebfdba,
-                0x5ea60761a84d161a,
-                0xbb2c75a34ea6c44a,
-                0x0ac6735921c1119b,
-                0x0ee3d913bdacfbf6,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x66b10000003affc5,
-                0xcb1400e764ec0030,
-                0xa73e5eb56fa5d106,
-                0x8984c913a0fe09a9,
-                0x11e10afb78ad7f13,
-                0x05429d0e3e918f52,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x534dffffffc4aae6,
-                0x5397ff174c67ffcf,
-                0xbff273eb870b251d,
-                0xdaf2827152870915,
-                0x393a9cbaca9e2dc3,
-                0x14be74dbfaee5748,
-            ])),
-        },
-        Fq2 {
-            c0: Fq::from_repr_raw(FqRepr([
-                0x760900000002fffd,
-                0xebf4000bc40c0002,
-                0x5f48985753c758ba,
-                0x77ce585370525745,
-                0x5c071a97a256ec6d,
-                0x15f65ec3fa80e493,
-            ])),
-            c1: Fq::from_repr_raw(FqRepr([
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-                0x0000000000000000,
-            ])),
-        },
-    ]};
+/// Coefficients of the 3-isogeny y map's denominator
+const YDEN: [Fq2; 4] = [
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x0162fffffa765adf,
+            0x8f7bea480083fb75,
+            0x561b3c2259e93611,
+            0x11e19fc1a9c875d5,
+            0xca713efc00367660,
+            0x03c6a03d41da1151,
+        ])),
+        c1: Fq(FqRepr([
+            0x0162fffffa765adf,
+            0x8f7bea480083fb75,
+            0x561b3c2259e93611,
+            0x11e19fc1a9c875d5,
+            0xca713efc00367660,
+            0x03c6a03d41da1151,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+        ])),
+        c1: Fq(FqRepr([
+            0x5db0fffffd3b02c5,
+            0xd713f52358ebfdba,
+            0x5ea60761a84d161a,
+            0xbb2c75a34ea6c44a,
+            0x0ac6735921c1119b,
+            0x0ee3d913bdacfbf6,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x66b10000003affc5,
+            0xcb1400e764ec0030,
+            0xa73e5eb56fa5d106,
+            0x8984c913a0fe09a9,
+            0x11e10afb78ad7f13,
+            0x05429d0e3e918f52,
+        ])),
+        c1: Fq(FqRepr([
+            0x534dffffffc4aae6,
+            0x5397ff174c67ffcf,
+            0xbff273eb870b251d,
+            0xdaf2827152870915,
+            0x393a9cbaca9e2dc3,
+            0x14be74dbfaee5748,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x760900000002fffd,
+            0xebf4000bc40c0002,
+            0x5f48985753c758ba,
+            0x77ce585370525745,
+            0x5c071a97a256ec6d,
+            0x15f65ec3fa80e493,
+        ])),
+        c1: Fq(FqRepr([
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+            0x0000000000000000,
+        ])),
+    },
+];
 
-    static ref ELLP_A: Fq2 = Fq2 {
-        c0: unsafe { Fq::from_repr_raw(FqRepr([
+const ELLP_A: Fq2 = Fq2 {
+    c0: Fq(FqRepr([
+        0x0000000000000000u64,
+        0x0000000000000000u64,
+        0x0000000000000000u64,
+        0x0000000000000000u64,
+        0x0000000000000000u64,
+        0x0000000000000000u64,
+    ])),
+    c1: Fq(FqRepr([
+        0xe53a000003135242u64,
+        0x01080c0fdef80285u64,
+        0xe7889edbe340f6bdu64,
+        0x0b51375126310601u64,
+        0x02d6985717c744abu64,
+        0x1220b4e979ea5467u64,
+    ])),
+};
+
+const ELLP_B: Fq2 = Fq2 {
+    c0: Fq(FqRepr([
+        0x22ea00000cf89db2u64,
+        0x6ec832df71380aa4u64,
+        0x6e1b94403db5a66eu64,
+        0x75bf3c53a79473bau64,
+        0x3dd3a569412c0a34u64,
+        0x125cdb5e74dc4fd1u64,
+    ])),
+    c1: Fq(FqRepr([
+        0x22ea00000cf89db2u64,
+        0x6ec832df71380aa4u64,
+        0x6e1b94403db5a66eu64,
+        0x75bf3c53a79473bau64,
+        0x3dd3a569412c0a34u64,
+        0x125cdb5e74dc4fd1u64,
+    ])),
+};
+
+const XI: Fq2 = Fq2 {
+    c0: Fq(FqRepr([
+        0x87ebfffffff9555cu64,
+        0x656fffe5da8ffffau64,
+        0xfd0749345d33ad2u64,
+        0xd951e663066576f4u64,
+        0xde291a3d41e980d3u64,
+        0x815664c7dfe040du64,
+    ])),
+    c1: Fq(FqRepr([
+        0x43f5fffffffcaaaeu64,
+        0x32b7fff2ed47fffdu64,
+        0x7e83a49a2e99d69u64,
+        0xeca8f3318332bb7au64,
+        0xef148d1ea0f4c069u64,
+        0x40ab3263eff0206u64,
+    ])),
+};
+
+const ETAS: [Fq2; 4] = [
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x5e514668ac736d2u64,
+            0x9089b4d6b84f3ea5u64,
+            0x603c384c224a8b32u64,
+            0xf3257909536afea6u64,
+            0x5c5cdbabae656d81u64,
+            0x75bfa0863c987e9u64,
+        ])),
+        c1: Fq(FqRepr([
+            0x338d9bfe08087330u64,
+            0x7b8e48b2bd83cefeu64,
+            0x530dad5d306b5be7u64,
+            0x5a4d7e8e6c408b6du64,
+            0x6258f7a6232cab9bu64,
+            0xb985811cce14db5u64,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x86716401f7f7377bu64,
+            0xa31db74bf3d03101u64,
+            0x14232543c6459a3cu64,
+            0xa29ccf687448752u64,
+            0xe8c2b010201f013cu64,
+            0xe68b9d86c9e98e4u64,
+        ])),
+        c1: Fq(FqRepr([
+            0x5e514668ac736d2u64,
+            0x9089b4d6b84f3ea5u64,
+            0x603c384c224a8b32u64,
+            0xf3257909536afea6u64,
+            0x5c5cdbabae656d81u64,
+            0x75bfa0863c987e9u64,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x718fdad24ee1d90fu64,
+            0xa58c025bed8276afu64,
+            0xc3a10230ab7976fu64,
+            0xf0c54df5c8f275e1u64,
+            0x4ec2478c28baf465u64,
+            0x1129373a90c508e6u64,
+        ])),
+        c1: Fq(FqRepr([
+            0x19af5f980a3680cu64,
+            0x4ed7da0e66063afau64,
+            0x600354723b5d9972u64,
+            0x8b2f958b20d09d72u64,
+            0x474938f02d461dbu64,
+            0xdcf8b9e0684ab1cu64,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0xb8640a067f5c429fu64,
+            0xcfd425f04b4dc505u64,
+            0x72d7e2ebb535cb1u64,
+            0xd947b5f9d2b4754du64,
+            0x46a7142740774afbu64,
+            0xc31864c32fb3b7eu64,
+        ])),
+        c1: Fq(FqRepr([
+            0x718fdad24ee1d90fu64,
+            0xa58c025bed8276afu64,
+            0xc3a10230ab7976fu64,
+            0xf0c54df5c8f275e1u64,
+            0x4ec2478c28baf465u64,
+            0x1129373a90c508e6u64,
+        ])),
+    },
+];
+
+const ROOTS_OF_UNITY: [Fq2; 4] = [
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x760900000002fffdu64,
+            0xebf4000bc40c0002u64,
+            0x5f48985753c758bau64,
+            0x77ce585370525745u64,
+            0x5c071a97a256ec6du64,
+            0x15f65ec3fa80e493u64,
+        ])),
+        c1: Fq(FqRepr([
             0x0000000000000000u64,
             0x0000000000000000u64,
             0x0000000000000000u64,
             0x0000000000000000u64,
             0x0000000000000000u64,
             0x0000000000000000u64,
-        ])) },
-        c1: unsafe { Fq::from_repr_raw(FqRepr([
-            0xe53a000003135242u64,
-            0x01080c0fdef80285u64,
-            0xe7889edbe340f6bdu64,
-            0x0b51375126310601u64,
-            0x02d6985717c744abu64,
-            0x1220b4e979ea5467u64,
-        ])) },
-    };
-
-    static ref ELLP_B: Fq2 = Fq2 {
-        c0: unsafe { Fq::from_repr_raw(FqRepr([
-            0x22ea00000cf89db2u64,
-            0x6ec832df71380aa4u64,
-            0x6e1b94403db5a66eu64,
-            0x75bf3c53a79473bau64,
-            0x3dd3a569412c0a34u64,
-            0x125cdb5e74dc4fd1u64,
-        ])) },
-        c1: unsafe { Fq::from_repr_raw(FqRepr([
-            0x22ea00000cf89db2u64,
-            0x6ec832df71380aa4u64,
-            0x6e1b94403db5a66eu64,
-            0x75bf3c53a79473bau64,
-            0x3dd3a569412c0a34u64,
-            0x125cdb5e74dc4fd1u64,
-        ])) },
-    };
-
-    static ref XI: Fq2 = Fq2 {
-        c0: unsafe { Fq::from_repr_raw(FqRepr([
-            0x87ebfffffff9555cu64,
-            0x656fffe5da8ffffau64,
-            0xfd0749345d33ad2u64,
-            0xd951e663066576f4u64,
-            0xde291a3d41e980d3u64,
-            0x815664c7dfe040du64,
-        ])) },
-        c1: unsafe { Fq::from_repr_raw(FqRepr([
-            0x43f5fffffffcaaaeu64,
-            0x32b7fff2ed47fffdu64,
-            0x7e83a49a2e99d69u64,
-            0xeca8f3318332bb7au64,
-            0xef148d1ea0f4c069u64,
-            0x40ab3263eff0206u64,
-        ])) },
-    };
-
-    static ref ETAS: [Fq2; 4] = [
-        Fq2 {
-            c0: unsafe { Fq::from_repr_raw(FqRepr([
-                0x5e514668ac736d2u64,
-                0x9089b4d6b84f3ea5u64,
-                0x603c384c224a8b32u64,
-                0xf3257909536afea6u64,
-                0x5c5cdbabae656d81u64,
-                0x75bfa0863c987e9u64,
-            ])) },
-            c1: unsafe { Fq::from_repr_raw(FqRepr([
-                0x338d9bfe08087330u64,
-                0x7b8e48b2bd83cefeu64,
-                0x530dad5d306b5be7u64,
-                0x5a4d7e8e6c408b6du64,
-                0x6258f7a6232cab9bu64,
-                0xb985811cce14db5u64,
-            ])) },
-        },
-        Fq2 {
-            c0: unsafe { Fq::from_repr_raw(FqRepr([
-                0x86716401f7f7377bu64,
-                0xa31db74bf3d03101u64,
-                0x14232543c6459a3cu64,
-                0xa29ccf687448752u64,
-                0xe8c2b010201f013cu64,
-                0xe68b9d86c9e98e4u64,
-            ])) },
-            c1: unsafe { Fq::from_repr_raw(FqRepr([
-                0x5e514668ac736d2u64,
-                0x9089b4d6b84f3ea5u64,
-                0x603c384c224a8b32u64,
-                0xf3257909536afea6u64,
-                0x5c5cdbabae656d81u64,
-                0x75bfa0863c987e9u64,
-            ])) },
-        },
-        Fq2 {
-            c0: unsafe { Fq::from_repr_raw(FqRepr([
-                0x718fdad24ee1d90fu64,
-                0xa58c025bed8276afu64,
-                0xc3a10230ab7976fu64,
-                0xf0c54df5c8f275e1u64,
-                0x4ec2478c28baf465u64,
-                0x1129373a90c508e6u64,
-            ])) },
-            c1: unsafe { Fq::from_repr_raw(FqRepr([
-                0x19af5f980a3680cu64,
-                0x4ed7da0e66063afau64,
-                0x600354723b5d9972u64,
-                0x8b2f958b20d09d72u64,
-                0x474938f02d461dbu64,
-                0xdcf8b9e0684ab1cu64,
-            ])) },
-        },
-        Fq2 {
-            c0: unsafe { Fq::from_repr_raw(FqRepr([
-                0xb8640a067f5c429fu64,
-                0xcfd425f04b4dc505u64,
-                0x72d7e2ebb535cb1u64,
-                0xd947b5f9d2b4754du64,
-                0x46a7142740774afbu64,
-                0xc31864c32fb3b7eu64,
-            ])) },
-            c1: unsafe { Fq::from_repr_raw(FqRepr([
-                0x718fdad24ee1d90fu64,
-                0xa58c025bed8276afu64,
-                0xc3a10230ab7976fu64,
-                0xf0c54df5c8f275e1u64,
-                0x4ec2478c28baf465u64,
-                0x1129373a90c508e6u64,
-            ])) },
-        },
-    ];
-
-    static ref ROOTS_OF_UNITY: [Fq2; 4] = [
-        Fq2 {
-            c0: unsafe { Fq::from_repr_raw(FqRepr([
-                0x760900000002fffdu64,
-                0xebf4000bc40c0002u64,
-                0x5f48985753c758bau64,
-                0x77ce585370525745u64,
-                0x5c071a97a256ec6du64,
-                0x15f65ec3fa80e493u64,
-            ])) },
-            c1: unsafe { Fq::from_repr_raw(FqRepr([
-                0x0000000000000000u64,
-                0x0000000000000000u64,
-                0x0000000000000000u64,
-                0x0000000000000000u64,
-                0x0000000000000000u64,
-                0x0000000000000000u64,
-            ])) },
-        },
-        Fq2 {
-            c0: unsafe { Fq::from_repr_raw(FqRepr([
-                0x0000000000000000u64,
-                0x0000000000000000u64,
-                0x0000000000000000u64,
-                0x0000000000000000u64,
-                0x0000000000000000u64,
-                0x0000000000000000u64,
-            ])) },
-            c1: unsafe { Fq::from_repr_raw(FqRepr([
-                0x760900000002fffdu64,
-                0xebf4000bc40c0002u64,
-                0x5f48985753c758bau64,
-                0x77ce585370525745u64,
-                0x5c071a97a256ec6du64,
-                0x15f65ec3fa80e493u64,
-            ])) },
-        },
-        Fq2 {
-            c0: unsafe { Fq::from_repr_raw(FqRepr([
-                0x7bcfa7a25aa30fdau64,
-                0xdc17dec12a927e7cu64,
-                0x2f088dd86b4ebef1u64,
-                0xd1ca2087da74d4a7u64,
-                0x2da2596696cebc1du64,
-                0x0e2b7eedbbfd87d2u64,
-            ])) },
-            c1: unsafe { Fq::from_repr_raw(FqRepr([
-                0x7bcfa7a25aa30fdau64,
-                0xdc17dec12a927e7cu64,
-                0x2f088dd86b4ebef1u64,
-                0xd1ca2087da74d4a7u64,
-                0x2da2596696cebc1du64,
-                0x0e2b7eedbbfd87d2u64,
-            ])) },
-        },
-        Fq2 {
-            c0: unsafe { Fq::from_repr_raw(FqRepr([
-                0x7bcfa7a25aa30fdau64,
-                0xdc17dec12a927e7cu64,
-                0x2f088dd86b4ebef1u64,
-                0xd1ca2087da74d4a7u64,
-                0x2da2596696cebc1du64,
-                0x0e2b7eedbbfd87d2u64,
-            ])) },
-            c1: unsafe { Fq::from_repr_raw(FqRepr([
-                0x3e2f585da55c9ad1u64,
-                0x4294213d86c18183u64,
-                0x382844c88b623732u64,
-                0x92ad2afd19103e18u64,
-                0x1d794e4fac7cf0b9u64,
-                0x0bd592fc7d825ec8u64,
-            ])) },
-        },
-    ];
-}
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x0000000000000000u64,
+            0x0000000000000000u64,
+            0x0000000000000000u64,
+            0x0000000000000000u64,
+            0x0000000000000000u64,
+            0x0000000000000000u64,
+        ])),
+        c1: Fq(FqRepr([
+            0x760900000002fffdu64,
+            0xebf4000bc40c0002u64,
+            0x5f48985753c758bau64,
+            0x77ce585370525745u64,
+            0x5c071a97a256ec6du64,
+            0x15f65ec3fa80e493u64,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x7bcfa7a25aa30fdau64,
+            0xdc17dec12a927e7cu64,
+            0x2f088dd86b4ebef1u64,
+            0xd1ca2087da74d4a7u64,
+            0x2da2596696cebc1du64,
+            0x0e2b7eedbbfd87d2u64,
+        ])),
+        c1: Fq(FqRepr([
+            0x7bcfa7a25aa30fdau64,
+            0xdc17dec12a927e7cu64,
+            0x2f088dd86b4ebef1u64,
+            0xd1ca2087da74d4a7u64,
+            0x2da2596696cebc1du64,
+            0x0e2b7eedbbfd87d2u64,
+        ])),
+    },
+    Fq2 {
+        c0: Fq(FqRepr([
+            0x7bcfa7a25aa30fdau64,
+            0xdc17dec12a927e7cu64,
+            0x2f088dd86b4ebef1u64,
+            0xd1ca2087da74d4a7u64,
+            0x2da2596696cebc1du64,
+            0x0e2b7eedbbfd87d2u64,
+        ])),
+        c1: Fq(FqRepr([
+            0x3e2f585da55c9ad1u64,
+            0x4294213d86c18183u64,
+            0x382844c88b623732u64,
+            0x92ad2afd19103e18u64,
+            0x1d794e4fac7cf0b9u64,
+            0x0bd592fc7d825ec8u64,
+        ])),
+    },
+];
 
 impl IsogenyMap for G2 {
     fn isogeny_map(&mut self) {
