@@ -8,6 +8,8 @@ mod fq2;
 mod fq6;
 mod fr;
 
+mod cofactors;
+
 #[cfg(feature = "serde")]
 mod serde_impl;
 #[cfg(test)]
@@ -22,6 +24,8 @@ pub use self::fq12::Fq12;
 pub use self::fq2::Fq2;
 pub use self::fq6::Fq6;
 pub use self::fr::{Fr, FrRepr};
+
+pub use self::cofactors::ClearH;
 
 use super::{Engine, PairingCurveAffine};
 
