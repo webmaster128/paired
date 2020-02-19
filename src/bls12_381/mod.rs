@@ -9,7 +9,6 @@ mod fq6;
 mod fr;
 
 mod cofactors;
-mod signum;
 
 #[cfg(feature = "serde")]
 mod serde_impl;
@@ -27,7 +26,6 @@ pub use self::fq6::Fq6;
 pub use self::fr::{Fr, FrRepr};
 
 pub use self::cofactors::ClearH;
-pub use self::signum::{Sgn0Result, Signum0};
 
 use super::{Engine, PairingCurveAffine};
 

@@ -1,11 +1,13 @@
 use std::cmp::Ordering;
+use std::io::{Cursor, Read};
 
 use super::fq2::Fq2;
-use crate::bls12_381::signum::{Sgn0Result, Signum0};
-use fff::{BitIterator, Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr};
+use crate::{BaseFromRO, Sgn0Result, Signum0};
 
 use blake2b_simd::State as Blake2b;
 use byteorder::{BigEndian, ByteOrder};
+use fff::{BitIterator, Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr};
+use sha2ni::digest::generic_array::{typenum::U64, GenericArray};
 
 // B coefficient of BLS12-381 curve, 4.
 pub const B_COEFF: Fq = Fq(FqRepr([
@@ -473,6 +475,15 @@ pub const NEGATIVE_ONE: Fq = Fq(FqRepr([
     0x40ab3263eff0206,
 ]));
 
+const F_2_256: Fq = Fq(FqRepr([
+    0x75b3cd7c5ce820fu64,
+    0x3ec6ba621c3edb0bu64,
+    0x168a13d82bff6bceu64,
+    0x87663c4bf8c449d2u64,
+    0x15f34c83ddc8d830u64,
+    0xf9628b49caa2e85u64,
+]));
+
 #[derive(PrimeField)]
 #[PrimeFieldModulus = "4002409555221667393417789825735904156556882819939007885332058136124031650490837864442687629129015664037894272559787"]
 #[PrimeFieldGenerator = "2"]
@@ -518,6 +529,28 @@ impl Fq {
     }
 }
 
+impl BaseFromRO for Fq {
+    type Length = U64;
+
+    // Convert an output keying material to an Fq element
+    // the input generic array is gauranteed to have 64 bytes
+    // TODO: length checks and safeguards on the wrappers?
+    fn from_okm(okm: &GenericArray<u8, U64>) -> Fq {
+        // unwraps are safe here: we only use 32 bytes at a time, which is strictly less than p
+        let mut repr = FqRepr::default();
+        repr.read_be(Cursor::new([0; 16]).chain(Cursor::new(&okm[..32])))
+            .unwrap();
+        let mut elm = Fq::from_repr(repr).unwrap();
+        elm.mul_assign(&F_2_256);
+
+        repr.read_be(Cursor::new([0; 16]).chain(Cursor::new(&okm[32..])))
+            .unwrap();
+        let elm2 = Fq::from_repr(repr).unwrap();
+        elm.add_assign(&elm2);
+        elm
+    }
+}
+
 impl Signum0 for Fq {
     // returns the sign of a center lifted element over the integer ring
     fn sgn0(&self) -> Sgn0Result {
@@ -538,6 +571,17 @@ impl Signum0 for Fq {
         }
     }
 }
+
+// p-1 / 2
+#[cfg(test)]
+pub(crate) const P_M1_OVER2: Fq = Fq(FqRepr([
+    0xa1fafffffffe5557u64,
+    0x995bfff976a3fffeu64,
+    0x03f41d24d174ceb4u64,
+    0xf6547998c1995dbdu64,
+    0x778a468f507a6034u64,
+    0x020559931f7f8103u64,
+]));
 
 #[cfg(test)]
 mod tests {
@@ -2439,5 +2483,71 @@ mod tests {
         Fq::hash(h),
         Fq::from_str("2969971670216977749765615497980645380676770840200853026844185893034591434908642692717019379762235872058512380843355").unwrap()
     );
+    }
+
+    #[test]
+    fn test_fq_hash_to_field() {
+        use crate::HashToField;
+
+        let mut hash_iter = HashToField::<Fq>::new("hello world", None);
+        let fq_val = hash_iter.next().unwrap();
+        let expect = FqRepr([
+            0xdfccf585f3c3abu64,
+            0x817786f85a6977d5u64,
+            0x4878057839c2eeb9u64,
+            0xdf824d0b3cacd45cu64,
+            0xac77eef7ea711095u64,
+            0x2457b5ea0140614u64,
+        ]);
+        assert_eq!(fq_val, Fq::from_repr(expect).unwrap());
+
+        let fq_val = hash_iter.with_ctr(0);
+        assert_eq!(fq_val, Fq::from_repr(expect).unwrap());
+
+        let fq_val = hash_iter.next().unwrap();
+        let expect = FqRepr([
+            0xe60a4d2be306281eu64,
+            0xf431b0bb0218acdu64,
+            0x2591ca592c870e9cu64,
+            0xd53fc832b7a3eae4u64,
+            0x9d4cbbb85780e0f4u64,
+            0x6ed9a29b5a2f831u64,
+        ]);
+        assert_eq!(fq_val, Fq::from_repr(expect).unwrap());
+    }
+
+    #[test]
+    fn test_fq_sgn0() {
+        assert_eq!(Fq::zero().sgn0(), Sgn0Result::NonNegative);
+        assert_eq!(Fq::one().sgn0(), Sgn0Result::NonNegative);
+        assert_eq!(P_M1_OVER2.sgn0(), Sgn0Result::NonNegative);
+
+        let p_p1_over2 = {
+            let mut tmp = P_M1_OVER2;
+            tmp.add_assign(&Fq::one());
+            tmp
+        };
+        assert_eq!(p_p1_over2.sgn0(), Sgn0Result::Negative);
+
+        let neg_p_p1_over2 = {
+            let mut tmp = p_p1_over2;
+            tmp.negate_if(Sgn0Result::Negative);
+            tmp
+        };
+        assert_eq!(neg_p_p1_over2, P_M1_OVER2);
+
+        let m1 = {
+            let mut tmp = Fq::one();
+            tmp.negate();
+            tmp
+        };
+        assert_eq!(m1.sgn0(), Sgn0Result::Negative);
+
+        let m0 = {
+            let mut tmp = Fq::zero();
+            tmp.negate();
+            tmp
+        };
+        assert_eq!(m0.sgn0(), Sgn0Result::NonNegative);
     }
 }

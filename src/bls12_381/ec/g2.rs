@@ -5,11 +5,11 @@ use groupy::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
 use lazy_static::lazy_static;
 use rand_core::RngCore;
 
-use super::super::{Bls12, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr, IsogenyMap, OsswuMap, Signum0};
+use super::super::{Bls12, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr, IsogenyMap, OsswuMap};
 use super::chain::chain_p2m9div16;
 use super::g1::G1Affine;
 use super::util::osswu_helper;
-use crate::{Engine, PairingCurveAffine};
+use crate::{Engine, PairingCurveAffine, Signum0};
 
 curve_impl!(
     "G2",

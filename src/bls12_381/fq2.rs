@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use super::fq::{Fq, FROBENIUS_COEFF_FQ2_C1, NEGATIVE_ONE};
-use crate::bls12_381::signum::{Sgn0Result, Signum0};
+use crate::{BaseFromRO, FromRO, Sgn0Result, Signum0};
 
 use blake2b_simd::State as Blake2b;
 use fff::{Field, SqrtField};
@@ -250,6 +250,18 @@ impl SqrtField for Fq2 {
 
                 Some(a1)
             }
+        }
+    }
+}
+
+/// Fq2 implementation: hash to two elemnts of Fq and combine.
+impl FromRO for Fq2 {
+    fn from_ro<B: AsRef<[u8]>>(input: B, ctr: u8) -> Fq2 {
+        let c0_val = Fq::base_from_ro(input.as_ref(), ctr, 1);
+        let c1_val = Fq::base_from_ro(input.as_ref(), ctr, 2);
+        Fq2 {
+            c0: c0_val,
+            c1: c1_val,
         }
     }
 }
@@ -1000,5 +1012,154 @@ mod tests {
         expected.add_assign(&Fq2::get_swenc_sqrt_neg_three_minus_one_div_two());
         expected.add_assign(&Fq2::one());
         assert_eq!(c0, expected);
+    }
+
+    #[test]
+    fn test_fq2_hash_to_field() {
+        use super::super::fq::FqRepr;
+        use crate::HashToField;
+        use fff::PrimeField;
+
+        let mut hash_iter = HashToField::<Fq2>::new("hello world", None);
+        let fq2_val = hash_iter.next().unwrap();
+        let expect_c0 = FqRepr([
+            0xdfccf585f3c3abu64,
+            0x817786f85a6977d5u64,
+            0x4878057839c2eeb9u64,
+            0xdf824d0b3cacd45cu64,
+            0xac77eef7ea711095u64,
+            0x2457b5ea0140614u64,
+        ]);
+        let expect_c1 = FqRepr([
+            0x405bf1ab86d10a7au64,
+            0x9d3be7ec3593d32fu64,
+            0x50ab07eeecc60cfdu64,
+            0xf17265f292da13d7u64,
+            0x8f78e998563bf8a6u64,
+            0x4ee3c6a6732ed31u64,
+        ]);
+        let expect = Fq2 {
+            c0: Fq::from_repr(expect_c0).unwrap(),
+            c1: Fq::from_repr(expect_c1).unwrap(),
+        };
+        assert_eq!(fq2_val, expect);
+
+        let fq2_val = hash_iter.next().unwrap();
+        let expect_c0 = FqRepr([
+            0xe60a4d2be306281eu64,
+            0xf431b0bb0218acdu64,
+            0x2591ca592c870e9cu64,
+            0xd53fc832b7a3eae4u64,
+            0x9d4cbbb85780e0f4u64,
+            0x6ed9a29b5a2f831u64,
+        ]);
+        let expect_c1 = FqRepr([
+            0x9c159085a3c31071u64,
+            0xf0acc544e0596fbau64,
+            0xb9ef11375c66a8d9u64,
+            0x594ec2fb229a36bfu64,
+            0xde6047631ce75a1eu64,
+            0x25013f50e2ace23u64,
+        ]);
+        let expect = Fq2 {
+            c0: Fq::from_repr(expect_c0).unwrap(),
+            c1: Fq::from_repr(expect_c1).unwrap(),
+        };
+        assert_eq!(fq2_val, expect);
+
+        let fq2_val = hash_iter.with_ctr(1);
+        assert_eq!(fq2_val, expect);
+    }
+
+    #[test]
+    fn test_fq2_sgn0() {
+        use super::super::fq::P_M1_OVER2;
+
+        assert_eq!(Fq2::zero().sgn0(), Sgn0Result::NonNegative);
+        assert_eq!(Fq2::one().sgn0(), Sgn0Result::NonNegative);
+        assert_eq!(
+            Fq2 {
+                c0: P_M1_OVER2,
+                c1: Fq::zero()
+            }
+            .sgn0(),
+            Sgn0Result::NonNegative
+        );
+        assert_eq!(
+            Fq2 {
+                c0: P_M1_OVER2,
+                c1: Fq::one()
+            }
+            .sgn0(),
+            Sgn0Result::NonNegative
+        );
+
+        let p_p1_over2 = {
+            let mut tmp = P_M1_OVER2;
+            tmp.add_assign(&Fq::one());
+            tmp
+        };
+        assert_eq!(
+            Fq2 {
+                c0: p_p1_over2,
+                c1: Fq::zero()
+            }
+            .sgn0(),
+            Sgn0Result::Negative
+        );
+        assert_eq!(
+            Fq2 {
+                c0: p_p1_over2,
+                c1: Fq::one()
+            }
+            .sgn0(),
+            Sgn0Result::NonNegative
+        );
+
+        let m1 = {
+            let mut tmp = Fq::one();
+            tmp.negate();
+            tmp
+        };
+        assert_eq!(
+            Fq2 {
+                c0: P_M1_OVER2,
+                c1: m1
+            }
+            .sgn0(),
+            Sgn0Result::Negative
+        );
+        assert_eq!(
+            Fq2 {
+                c0: p_p1_over2,
+                c1: m1
+            }
+            .sgn0(),
+            Sgn0Result::Negative
+        );
+        assert_eq!(
+            Fq2 {
+                c0: Fq::zero(),
+                c1: m1
+            }
+            .sgn0(),
+            Sgn0Result::Negative
+        );
+        assert_eq!(
+            Fq2 {
+                c0: P_M1_OVER2,
+                c1: p_p1_over2
+            }
+            .sgn0(),
+            Sgn0Result::Negative
+        );
+        assert_eq!(
+            Fq2 {
+                c0: p_p1_over2,
+                c1: P_M1_OVER2
+            }
+            .sgn0(),
+            Sgn0Result::NonNegative
+        );
     }
 }
