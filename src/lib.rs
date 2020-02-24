@@ -19,6 +19,13 @@
 pub mod tests;
 
 pub mod bls12_381;
+mod hash_to_curve;
+mod hash_to_field;
+mod signum;
+
+pub use self::hash_to_curve::HashToCurve;
+pub use self::hash_to_field::{BaseFromRO, FromRO, HashToField};
+pub use self::signum::{Sgn0Result, Signum0};
 
 use fff::{Field, PrimeField, ScalarEngine, SqrtField};
 use groupy::{CurveAffine, CurveProjective};
