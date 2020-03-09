@@ -2,7 +2,7 @@ mod g1 {
     use rand_core::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
-    use ff::Field;
+    use fff::Field;
     use groupy::CurveProjective;
     use paired::bls12_381::*;
 
@@ -77,7 +77,7 @@ mod g2 {
     use rand_core::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
-    use ff::Field;
+    use fff::Field;
     use groupy::CurveProjective;
     use paired::bls12_381::*;
 

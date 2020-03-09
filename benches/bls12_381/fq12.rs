@@ -1,7 +1,7 @@
 use rand_core::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
-use ff::Field;
+use fff::Field;
 use paired::bls12_381::*;
 
 #[bench]
