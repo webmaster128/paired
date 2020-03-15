@@ -1,6 +1,6 @@
 #![feature(test)]
 
-extern crate ff;
+extern crate fff;
 extern crate groupy;
 extern crate paired;
 extern crate rand_core;
