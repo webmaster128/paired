@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::io::{Cursor, Read};
 
 use super::fq2::Fq2;
@@ -6,8 +5,8 @@ use crate::{BaseFromRO, Sgn0Result, Signum0};
 
 use blake2b_simd::State as Blake2b;
 use byteorder::{BigEndian, ByteOrder};
+use digest::generic_array::{typenum::U64, GenericArray};
 use fff::{BitIterator, Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr};
-use sha2ni::digest::generic_array::{typenum::U64, GenericArray};
 
 // B coefficient of BLS12-381 curve, 4.
 pub const B_COEFF: Fq = Fq(FqRepr([
@@ -530,7 +529,7 @@ impl Fq {
 }
 
 impl BaseFromRO for Fq {
-    type Length = U64;
+    type BaseLength = U64;
 
     // Convert an output keying material to an Fq element
     // the input generic array is gauranteed to have 64 bytes
@@ -552,36 +551,14 @@ impl BaseFromRO for Fq {
 }
 
 impl Signum0 for Fq {
-    // returns the sign of a center lifted element over the integer ring
     fn sgn0(&self) -> Sgn0Result {
-        // (group_order - 1)/2
-        const PM1DIV2: FqRepr = FqRepr([
-            0xdcff7fffffffd555u64,
-            0x0f55ffff58a9ffffu64,
-            0xb39869507b587b12u64,
-            0xb23ba5c279c2895fu64,
-            0x258dd3db21a5d66bu64,
-            0x0d0088f51cbff34du64,
-        ]);
-
-        if self.into_repr().cmp(&PM1DIV2) == Ordering::Greater {
+        if self.into_repr().0[0] & 1 == 1 {
             Sgn0Result::Negative
         } else {
             Sgn0Result::NonNegative
         }
     }
 }
-
-// p-1 / 2
-#[cfg(test)]
-pub(crate) const P_M1_OVER2: Fq = Fq(FqRepr([
-    0xa1fafffffffe5557u64,
-    0x995bfff976a3fffeu64,
-    0x03f41d24d174ceb4u64,
-    0xf6547998c1995dbdu64,
-    0x778a468f507a6034u64,
-    0x020559931f7f8103u64,
-]));
 
 #[cfg(test)]
 mod tests {
@@ -2486,63 +2463,115 @@ mod tests {
     }
 
     #[test]
-    fn test_fq_hash_to_field() {
-        use crate::HashToField;
+    fn test_fq_hash_to_field_xof_shake128() {
+        use crate::hash_to_field::{hash_to_field, ExpandMsgXof};
+        use sha3::Shake128;
 
-        let mut hash_iter = HashToField::<Fq>::new("hello world", None);
-        let fq_val = hash_iter.next().unwrap();
+        let u = hash_to_field::<Fq, ExpandMsgXof<Shake128>>(b"hello world", b"asdfqwerzxcv", 5);
         let expect = FqRepr([
-            0xdfccf585f3c3abu64,
-            0x817786f85a6977d5u64,
-            0x4878057839c2eeb9u64,
-            0xdf824d0b3cacd45cu64,
-            0xac77eef7ea711095u64,
-            0x2457b5ea0140614u64,
+            0x24606c02a2832651u64,
+            0x938bdda212c48cebu64,
+            0x1efda56062ec419eu64,
+            0x56875b0494cf23c3u64,
+            0x949e3a98626b3315u64,
+            0xc26e7d7774840efu64,
         ]);
-        assert_eq!(fq_val, Fq::from_repr(expect).unwrap());
-
-        let fq_val = hash_iter.with_ctr(0);
-        assert_eq!(fq_val, Fq::from_repr(expect).unwrap());
-
-        let fq_val = hash_iter.next().unwrap();
+        assert_eq!(u[0], Fq::from_repr(expect).unwrap());
         let expect = FqRepr([
-            0xe60a4d2be306281eu64,
-            0xf431b0bb0218acdu64,
-            0x2591ca592c870e9cu64,
-            0xd53fc832b7a3eae4u64,
-            0x9d4cbbb85780e0f4u64,
-            0x6ed9a29b5a2f831u64,
+            0x9ad7d8d863f5bfd3u64,
+            0x1a7fed20387de776u64,
+            0x6940573ad5f2a648u64,
+            0x836dc98edb77a5fau64,
+            0x83a168be2975dc4cu64,
+            0x6aa86f37d87b8cbu64,
         ]);
-        assert_eq!(fq_val, Fq::from_repr(expect).unwrap());
+        assert_eq!(u[1], Fq::from_repr(expect).unwrap());
+        let expect = FqRepr([
+            0x15adbbe5d2882d3eu64,
+            0xa3c020ddabea153u64,
+            0xd5a7221a07f9c8bfu64,
+            0xc8129a2c66578e42u64,
+            0x4602d1382e5bb3f3u64,
+            0x131f6d4aad6c289du64,
+        ]);
+        assert_eq!(u[2], Fq::from_repr(expect).unwrap());
+        let expect = FqRepr([
+            0xb474338a39faf63au64,
+            0xae4f84a983c65a3bu64,
+            0x79bdddd1f69341u64,
+            0x837431a260f39db6u64,
+            0x5648bea8387eacb8u64,
+            0x10cc1407134a8b52u64,
+        ]);
+        assert_eq!(u[3], Fq::from_repr(expect).unwrap());
+        let expect = FqRepr([
+            0xde0bb37d7fd2c03u64,
+            0x938b1e576b3bdbf5u64,
+            0xf26d472ca0462516u64,
+            0x32e742ce787399au64,
+            0x3cbe0849357f259u64,
+            0x182cd9a1a944fce4u64,
+        ]);
+        assert_eq!(u[4], Fq::from_repr(expect).unwrap());
+    }
+
+    #[test]
+    fn test_fq_hash_to_field_xmd_sha256() {
+        use crate::hash_to_field::{hash_to_field, ExpandMsgXmd};
+        use sha2ni::Sha256;
+
+        let u = hash_to_field::<Fq, ExpandMsgXmd<Sha256>>(b"hello world", b"asdfqwerzxcv", 5);
+        let expect = FqRepr([
+            0x8f07d74549bb8afau64,
+            0x31e6bf8606ac3fb0u64,
+            0xb9bd8770f984262fu64,
+            0x3a164f8b239f6e05u64,
+            0xc1232049588c34aeu64,
+            0x19a22f099079589au64,
+        ]);
+        assert_eq!(u[0], Fq::from_repr(expect).unwrap());
+        let expect = FqRepr([
+            0xc14526c4fe3bbab1u64,
+            0x6c3c7216400b8f66u64,
+            0xf0cd062901da4caau64,
+            0xf979e14776f9d2u64,
+            0xb1fd23bf5a331884u64,
+            0xffc3b7768d268d5u64,
+        ]);
+        assert_eq!(u[1], Fq::from_repr(expect).unwrap());
+        let expect = FqRepr([
+            0xbb3fc44aad40676du64,
+            0xbb56dbb2eb91dbb3u64,
+            0x54c705505e6bf0cau64,
+            0x8654b8b21138e0bcu64,
+            0x8717f9d046d925d6u64,
+            0xb6c6899739c2d59u64,
+        ]);
+        assert_eq!(u[2], Fq::from_repr(expect).unwrap());
+        let expect = FqRepr([
+            0xd2747ff3500179aau64,
+            0xa6625f23f9e6da71u64,
+            0xdb1fdf290dd7b1adu64,
+            0x3a55cba1ee4bc942u64,
+            0xbcb608643d7ca236u64,
+            0x19de74df84b63e54u64,
+        ]);
+        assert_eq!(u[3], Fq::from_repr(expect).unwrap());
+        let expect = FqRepr([
+            0x2c941e7ac5de2986u64,
+            0x55abffcf150d8759u64,
+            0x32bc08f24fe6d1a9u64,
+            0x28010e76f58a9f71u64,
+            0x278f14ec0fbf0472u64,
+            0xdc230491783efb9u64,
+        ]);
+        assert_eq!(u[4], Fq::from_repr(expect).unwrap());
     }
 
     #[test]
     fn test_fq_sgn0() {
         assert_eq!(Fq::zero().sgn0(), Sgn0Result::NonNegative);
-        assert_eq!(Fq::one().sgn0(), Sgn0Result::NonNegative);
-        assert_eq!(P_M1_OVER2.sgn0(), Sgn0Result::NonNegative);
-
-        let p_p1_over2 = {
-            let mut tmp = P_M1_OVER2;
-            tmp.add_assign(&Fq::one());
-            tmp
-        };
-        assert_eq!(p_p1_over2.sgn0(), Sgn0Result::Negative);
-
-        let neg_p_p1_over2 = {
-            let mut tmp = p_p1_over2;
-            tmp.negate_if(Sgn0Result::Negative);
-            tmp
-        };
-        assert_eq!(neg_p_p1_over2, P_M1_OVER2);
-
-        let m1 = {
-            let mut tmp = Fq::one();
-            tmp.negate();
-            tmp
-        };
-        assert_eq!(m1.sgn0(), Sgn0Result::Negative);
-
+        assert_eq!(Fq::one().sgn0(), Sgn0Result::Negative);
         let m0 = {
             let mut tmp = Fq::zero();
             tmp.negate();
