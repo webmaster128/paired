@@ -24,7 +24,7 @@ fff = { version = "0.2.0", features = ["derive"] }
 groupy = "0.3.0"
 rand_core = "0.5"
 hkdf = "0.8.0"
-digest = "0.8.1"
+digest = { version = "0.8.1", features = ["std"] }
 
 [dev-dependencies]
 rand_xorshift = "0.2"
