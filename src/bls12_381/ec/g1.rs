@@ -1,4 +1,5 @@
 use std::fmt;
+use std::io::{Read, Write};
 
 use fff::{BitIterator, Field, PrimeField, PrimeFieldRepr, SqrtField};
 use groupy::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
@@ -32,6 +33,46 @@ encoded_point_delegations!(G1Uncompressed);
 impl fmt::Debug for G1Uncompressed {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         self.0[..].fmt(formatter)
+    }
+}
+
+/// These methods provide fast reading and writing for `G1Affine` points.
+/// Points are guaranteed to be unaffected by a `write`-`read` roundtrip,
+/// but input to `read` is assumed to be correct. No validation is performed
+/// on the raw components, so it is an error to `read` arbitrary data.
+impl G1Affine {
+    #[inline]
+    pub fn raw_fmt_size() -> usize {
+        let s = G1Uncompressed::size();
+        s + 1
+    }
+
+    pub fn write_raw<W: Write>(&self, mut writer: W) -> Result<usize, std::io::Error> {
+        if self.infinity {
+            writer.write_all(&[1])?;
+        } else {
+            writer.write_all(&[0])?;
+        }
+
+        self.x.0.write_be(&mut writer)?;
+        self.y.0.write_be(&mut writer)?;
+
+        Ok(Self::raw_fmt_size())
+    }
+
+    pub fn read_raw<R: Read>(mut reader: R) -> Result<Self, std::io::Error> {
+        let mut buf = [0u8];
+        reader.read_exact(&mut buf)?;
+        let infinity = buf[0] == 1;
+        let mut x = FqRepr::default();
+        x.read_be(&mut reader)?;
+        let mut y = FqRepr::default();
+        y.read_be(&mut reader)?;
+        Ok(Self {
+            x: Fq(x),
+            y: Fq(y),
+            infinity,
+        })
     }
 }
 
@@ -1653,6 +1694,27 @@ mod tests {
             let g_uncompressed = g.into_affine().into_uncompressed();
 
             assert_eq!(case.expected(), hex::encode(&g_uncompressed.0[..]));
+        }
+    }
+
+    #[test]
+    fn test_g1_raw_io() {
+        let mut rng = rand_xorshift::XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+        let trials = 1000;
+        for _ in 0..trials {
+            let g1 = G1::random(&mut rng);
+            let affine = g1.into_affine();
+            let mut buf = Vec::new();
+
+            let bytes_written = affine.write_raw(&mut buf).unwrap();
+            assert_eq!(G1Affine::raw_fmt_size(), bytes_written);
+            assert_eq!(G1Affine::raw_fmt_size(), buf.len());
+            let affine_again = G1Affine::read_raw(buf.as_slice()).unwrap();
+
+            assert_eq!(affine, affine_again);
         }
     }
 }
