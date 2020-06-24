@@ -28,11 +28,11 @@ commands:
       - run:
           name: Test (<< parameters.target >>)
           command: TARGET=<< parameters.target >> cargo test
-          no_output_timeout: 15m
+          no_output_timeout: 30m
       - run:
           name: Test serde (<< parameters.target >>)
           command: TARGET=<< parameters.target >> cargo test --features serde
-          no_output_timeout: 15m
+          no_output_timeout: 30m
 
 jobs:
   cargo_fetch:
