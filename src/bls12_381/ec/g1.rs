@@ -60,7 +60,7 @@ impl G1Affine {
         Ok(Self::raw_fmt_size())
     }
 
-    pub fn read_raw<R: Read>(mut reader: R, check: bool) -> Result<Self, std::io::Error> {
+    pub fn read_raw<R: Read>(mut reader: R) -> Result<Self, std::io::Error> {
         let mut buf = [0u8];
         reader.read_exact(&mut buf)?;
         let infinity = buf[0] == 1;
@@ -68,26 +68,27 @@ impl G1Affine {
         x.read_be(&mut reader)?;
         let mut y = FqRepr::default();
         y.read_be(&mut reader)?;
-
-        let affine = Self {
+        Ok(Self {
             x: Fq(x),
             y: Fq(y),
             infinity,
-        };
+        })
+    }
 
-        if check {
-            if !affine.is_on_curve() {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    GroupDecodingError::NotOnCurve,
-                ));
-            }
-            if !affine.is_in_correct_subgroup_assuming_on_curve() {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    GroupDecodingError::NotInSubgroup,
-                ));
-            }
+    pub fn read_raw_checked<R: Read>(reader: R) -> Result<Self, std::io::Error> {
+        let affine = Self::read_raw(reader)?;
+
+        if !affine.is_on_curve() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                GroupDecodingError::NotOnCurve,
+            ));
+        }
+        if !affine.is_in_correct_subgroup_assuming_on_curve() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                GroupDecodingError::NotInSubgroup,
+            ));
         }
 
         Ok(affine)
@@ -1730,9 +1731,53 @@ mod tests {
             let bytes_written = affine.write_raw(&mut buf).unwrap();
             assert_eq!(G1Affine::raw_fmt_size(), bytes_written);
             assert_eq!(G1Affine::raw_fmt_size(), buf.len());
-            let affine_again = G1Affine::read_raw(buf.as_slice(), true).unwrap();
+            let affine_again = G1Affine::read_raw(buf.as_slice()).unwrap();
 
             assert_eq!(affine, affine_again);
+        }
+    }
+
+    #[test]
+    fn test_g1_raw_io_checked() {
+        let mut rng = rand_xorshift::XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+        let trials = 1000;
+        for _ in 0..trials {
+            let g1 = G1::random(&mut rng);
+            let affine = g1.into_affine();
+            let mut buf = Vec::new();
+
+            let bytes_written = affine.write_raw(&mut buf).unwrap();
+            assert_eq!(G1Affine::raw_fmt_size(), bytes_written);
+            assert_eq!(G1Affine::raw_fmt_size(), buf.len());
+            let affine_again = G1Affine::read_raw_checked(buf.as_slice()).unwrap();
+
+            assert_eq!(affine, affine_again);
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_g1_raw_io_checked_failure() {
+        let mut rng = rand_xorshift::XorShiftRng::from_seed([
+            0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+            0xbc, 0xe5,
+        ]);
+        let trials = 1000;
+        for _ in 0..trials {
+            let g1 = G1::random(&mut rng);
+            let affine = g1.into_affine();
+            let mut buf = Vec::new();
+
+            let bytes_written = affine.write_raw(&mut buf).unwrap();
+            assert_eq!(G1Affine::raw_fmt_size(), bytes_written);
+            assert_eq!(G1Affine::raw_fmt_size(), buf.len());
+
+            // Perturb the raw bytes: this is bound to produce a bad value.
+            buf[1] = 123;
+            G1Affine::read_raw_checked(buf.as_slice()).unwrap();
         }
     }
 }
