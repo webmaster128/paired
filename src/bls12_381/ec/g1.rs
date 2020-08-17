@@ -183,7 +183,7 @@ impl EncodedPoint for G1Uncompressed {
 }
 
 #[derive(Copy, Clone)]
-pub struct G1Compressed([u8; 48]);
+pub struct G1Compressed(pub [u8; 48]);
 
 encoded_point_delegations!(G1Compressed);
 
