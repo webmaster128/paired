@@ -27,7 +27,7 @@ pub use self::hash_to_curve::HashToCurve;
 pub use self::hash_to_field::{hash_to_field, BaseFromRO, ExpandMsgXmd, ExpandMsgXof, FromRO};
 pub use self::signum::{Sgn0Result, Signum0};
 
-use fff::{Field, PrimeField, ScalarEngine, SqrtField};
+pub use fff::{Field, PrimeField, ScalarEngine, SqrtField};
 pub use groupy::{CurveAffine, CurveProjective, EncodedPoint, GroupDecodingError};
 
 #[cfg(feature = "serde")]
