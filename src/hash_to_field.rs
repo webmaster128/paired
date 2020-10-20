@@ -147,7 +147,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sha2::Sha256;
+    use sha2::{Sha256, Sha512};
 
     // Except introducing new internal variables, expand_message_xmd did not change
     // between draft 7 and draft 8 (https://tools.ietf.org/rfcdiff?difftype=--hwdiff&url2=draft-irtf-cfrg-hash-to-curve-08.txt).
@@ -255,6 +255,112 @@ mod tests {
                 .unwrap();
         assert_eq!(
             ExpandMsgXmd::<Sha256>::expand_message(msg, dst, len_in_bytes),
+            uniform_bytes
+        );
+    }
+
+    /// From https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-08#appendix-I.2
+    #[test]
+    fn expand_message_xmd_works_for_draft8_testvectors_sha512() {
+        let dst = b"QUUX-V01-CS02-with-expander";
+
+        let msg = b"";
+        let len_in_bytes = 0x20;
+        let uniform_bytes =
+            hex::decode("2eaa1f7b5715f4736e6a5dbe288257abf1faa028680c1d938cd62ac699ead642")
+                .unwrap();
+        assert_eq!(
+            ExpandMsgXmd::<Sha512>::expand_message(msg, dst, len_in_bytes),
+            uniform_bytes
+        );
+
+        let msg = b"abc";
+        let len_in_bytes = 0x20;
+        let uniform_bytes =
+            hex::decode("0eeda81f69376c80c0f8986496f22f21124cb3c562cf1dc608d2c13005553b0f")
+                .unwrap();
+        assert_eq!(
+            ExpandMsgXmd::<Sha512>::expand_message(msg, dst, len_in_bytes),
+            uniform_bytes
+        );
+
+        let msg = b"abcdef0123456789";
+        let len_in_bytes = 0x20;
+        let uniform_bytes =
+            hex::decode("2e375fc05e05e80dbf3083796fde2911789d9e8847e1fcebf4ca4b36e239b338")
+                .unwrap();
+        assert_eq!(
+            ExpandMsgXmd::<Sha512>::expand_message(msg, dst, len_in_bytes),
+            uniform_bytes
+        );
+
+        let msg = b"q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
+        let len_in_bytes = 0x20;
+        let uniform_bytes =
+            hex::decode("c37f9095fe7fe4f01c03c3540c1229e6ac8583b07510085920f62ec66acc0197")
+                .unwrap();
+        assert_eq!(
+            ExpandMsgXmd::<Sha512>::expand_message(msg, dst, len_in_bytes),
+            uniform_bytes
+        );
+
+        let msg = b"a512_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let len_in_bytes = 0x20;
+        let uniform_bytes =
+            hex::decode("af57a7f56e9ed2aa88c6eab45c8c6e7638ae02da7c92cc04f6648c874ebd560e")
+                .unwrap();
+        assert_eq!(
+            ExpandMsgXmd::<Sha512>::expand_message(msg, dst, len_in_bytes),
+            uniform_bytes
+        );
+
+        let msg = b"";
+        let len_in_bytes = 0x80;
+        let uniform_bytes =
+            hex::decode("0687ce02eba5eb3faf1c3c539d1f04babd3c0f420edae244eeb2253b6c6d6865145c31458e824b4e87ca61c3442dc7c8c9872b0b7250aa33e0668ccebbd2b386de658ca11a1dcceb51368721ae6dcd2d4bc86eaebc4e0d11fa02ad053289c9b28a03da6c942b2e12c14e88dbde3b0ba619d6214f47212b628f3e1b537b66efcf")
+                .unwrap();
+        assert_eq!(
+            ExpandMsgXmd::<Sha512>::expand_message(msg, dst, len_in_bytes),
+            uniform_bytes
+        );
+
+        let msg = b"abc";
+        let len_in_bytes = 0x80;
+        let uniform_bytes =
+            hex::decode("779ae4fd8a92f365e4df96b9fde97b40486bb005c1a2096c86f55f3d92875d89045fbdbc4a0e9f2d3e1e6bcd870b2d7131d868225b6fe72881a81cc5166b5285393f71d2e68bb0ac603479959370d06bdbe5f0d8bfd9af9494d1e4029bd68ab35a561341dd3f866b3ef0c95c1fdfaab384ce24a23427803dda1db0c7d8d5344a")
+                .unwrap();
+        assert_eq!(
+            ExpandMsgXmd::<Sha512>::expand_message(msg, dst, len_in_bytes),
+            uniform_bytes
+        );
+
+        let msg = b"abcdef0123456789";
+        let len_in_bytes = 0x80;
+        let uniform_bytes =
+            hex::decode("f0953d28846a50e9f88b7ae35b643fc43733c9618751b569a73960c655c068db7b9f044ad5a40d49d91c62302eaa26163c12abfa982e2b5d753049e000adf7630ae117aeb1fb9b61fc724431ac68b369e12a9481b4294384c3c890d576a79264787bc8076e7cdabe50c044130e480501046920ff090c1a091c88391502f0fbac")
+                .unwrap();
+        assert_eq!(
+            ExpandMsgXmd::<Sha512>::expand_message(msg, dst, len_in_bytes),
+            uniform_bytes
+        );
+
+        let msg = b"q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
+        let len_in_bytes = 0x80;
+        let uniform_bytes =
+            hex::decode("64d3e59f0bc3c5e653011c914b419ba8310390a9585311fddb26791d26663bd71971c347e1b5e88ba9274d2445ed9dcf48eea9528d807b7952924159b7c27caa4f25a2ea94df9508e70a7012dfce0e8021b37e59ea21b80aa9af7f1a1f2efa4fbe523c4266ce7d342acaacd438e452c501c131156b4945515e9008d2b155c258")
+                .unwrap();
+        assert_eq!(
+            ExpandMsgXmd::<Sha512>::expand_message(msg, dst, len_in_bytes),
+            uniform_bytes
+        );
+
+        let msg = b"a512_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let len_in_bytes = 0x80;
+        let uniform_bytes =
+            hex::decode("01524feea5b22f6509f6b1e805c97df94faf4d821b01aadeebc89e9daaed0733b4544e50852fd3e019d58eaad6d267a134c8bc2c08bc46c10bfeff3ee03110bcd8a0d695d75a34092bd8b677bdd369a13325549abab54f4ac907b712bdd3567f38c4554c51902b735b81f43a7ef6f938c7690d107c052c7e7b795ac635b3200a")
+                .unwrap();
+        assert_eq!(
+            ExpandMsgXmd::<Sha512>::expand_message(msg, dst, len_in_bytes),
             uniform_bytes
         );
     }
