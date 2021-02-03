@@ -193,6 +193,12 @@ impl fmt::Debug for G1Compressed {
     }
 }
 
+impl From<[u8; 48]> for G1Compressed {
+    fn from(original: [u8; 48]) -> Self {
+        Self(original)
+    }
+}
+
 impl EncodedPoint for G1Compressed {
     type Affine = G1Affine;
 
@@ -910,6 +916,16 @@ mod tests {
     use super::*;
 
     use super::super::util::check_g_prime;
+
+    #[test]
+    fn g1_compressed_constructor() {
+        let data: [u8; 48] = [
+            134, 143, 0, 94, 184, 230, 228, 202, 10, 71, 200, 167, 124, 234, 165, 48, 154, 71, 151,
+            138, 124, 113, 188, 92, 206, 150, 54, 107, 93, 122, 86, 153, 55, 197, 41, 238, 218,
+            102, 199, 41, 55, 132, 169, 64, 40, 1, 175, 49,
+        ];
+        let _compressed = G1Compressed::from(data);
+    }
 
     #[test]
     fn g1_generator() {

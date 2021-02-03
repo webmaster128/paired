@@ -151,6 +151,12 @@ impl fmt::Debug for G2Compressed {
     }
 }
 
+impl From<[u8; 96]> for G2Compressed {
+    fn from(original: [u8; 96]) -> Self {
+        Self(original)
+    }
+}
+
 impl EncodedPoint for G2Compressed {
     type Affine = G2Affine;
 
@@ -926,6 +932,19 @@ impl OsswuMap for G2 {
 mod tests {
     use super::super::util::check_g_prime;
     use super::*;
+
+    #[test]
+    fn g2_compressed_constructor() {
+        let data: [u8; 96] = [
+            130, 245, 211, 210, 222, 77, 177, 157, 64, 166, 152, 14, 138, 163, 120, 66, 160, 229,
+            93, 29, 240, 107, 214, 139, 221, 200, 214, 0, 2, 232, 233, 89, 235, 156, 250, 54, 139,
+            60, 27, 119, 209, 143, 2, 165, 79, 224, 71, 184, 15, 9, 137, 49, 95, 131, 177, 42, 116,
+            253, 134, 121, 196, 241, 42, 174, 134, 234, 246, 171, 86, 144, 179, 79, 31, 221, 213,
+            14, 227, 204, 111, 108, 223, 89, 233, 85, 38, 213, 165, 216, 42, 170, 132, 250, 111,
+            24, 30, 66,
+        ];
+        let _compressed = G2Compressed::from(data);
+    }
 
     #[test]
     fn g2_generator() {
