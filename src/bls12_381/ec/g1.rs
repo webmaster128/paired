@@ -193,8 +193,8 @@ impl fmt::Debug for G1Compressed {
     }
 }
 
-impl From<[u8; 48]> for G1Compressed {
-    fn from(original: [u8; 48]) -> Self {
+impl G1Compressed {
+    fn from_bytes_unchecked(original: [u8; 48]) -> Self {
         Self(original)
     }
 }
@@ -918,13 +918,14 @@ mod tests {
     use super::super::util::check_g_prime;
 
     #[test]
-    fn g1_compressed_constructor() {
+    fn g1_compressed_from_bytes_unchecked() {
         let data: [u8; 48] = [
             134, 143, 0, 94, 184, 230, 228, 202, 10, 71, 200, 167, 124, 234, 165, 48, 154, 71, 151,
             138, 124, 113, 188, 92, 206, 150, 54, 107, 93, 122, 86, 153, 55, 197, 41, 238, 218,
             102, 199, 41, 55, 132, 169, 64, 40, 1, 175, 49,
         ];
-        let _compressed = G1Compressed::from(data);
+        let compressed = G1Compressed::from_bytes_unchecked(data);
+        assert_eq!(&compressed.0[..], &data[..]);
     }
 
     #[test]
