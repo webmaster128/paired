@@ -182,6 +182,31 @@ impl EncodedPoint for G1Uncompressed {
     }
 }
 
+/// A struct holding the data of a compressed serialization of a [G1Affine].
+/// Use this to encode or decode [G1Affine]s using the compressed encoding.
+///
+/// # Examples
+///
+/// Encoding:
+///
+/// ```
+/// # use groupy::{CurveAffine, EncodedPoint};
+/// # use paired::bls12_381::{G1Affine};
+/// # let p = G1Affine::zero();
+/// use paired::bls12_381::G1Compressed;
+///
+/// let bytes = G1Compressed::from_affine(p).as_ref();
+/// ```
+///
+/// Decoding:
+///
+/// ```
+/// # use groupy::{EncodedPoint};
+/// use paired::bls12_381::G1Compressed;
+///
+/// let bytes: [u8; 48] = [134, 143, 0, 94, 184, 230, 228, 202, 10, 71, 200, 167, 124, 234, 165, 48, 154, 71, 151, 138, 124, 113, 188, 92, 206, 150, 54, 107, 93, 122, 86, 153, 55, 197, 41, 238, 218, 102, 199, 41, 55, 132, 169, 64, 40, 1, 175, 49];
+/// let p = G1Compressed::from_bytes_unchecked(bytes).into_affine().unwrap();
+/// ```
 #[derive(Copy, Clone)]
 pub struct G1Compressed([u8; 48]);
 
@@ -194,7 +219,9 @@ impl fmt::Debug for G1Compressed {
 }
 
 impl G1Compressed {
-    fn from_bytes_unchecked(original: [u8; 48]) -> Self {
+    /// Creates an instance from raw bytes.
+    /// The input is not checked to contain a valid point.
+    pub fn from_bytes_unchecked(original: [u8; 48]) -> Self {
         Self(original)
     }
 }
